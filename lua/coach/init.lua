@@ -14,13 +14,19 @@ local active = false
 ---@type number|nil
 local save_autocmd = nil
 
+---@type string
+local next_key = "<leader>kn"
+
 --- Render the current exercise in the window
 local function render_current()
   local exercise = exercises.get(progress.get_exercise_index())
   if exercise then
-    window.render(exercise, progress.get_counts(), progress.get_required_reps())
+    window.render(exercise, progress.get_counts(), progress.get_required_reps(), next_key)
   end
 end
+
+-- Hook for window message timer to re-render after message clears
+window._rerender = render_current
 
 --- Start coaching: load progress, register tracker, open window
 function M.start()
@@ -101,6 +107,45 @@ function M.next_exercise()
   render_current()
 end
 
+--- Go to the previous exercise
+function M.prev_exercise()
+  if not active then
+    vim.notify("coach.nvim: coaching is not active.", vim.log.levels.WARN)
+    return
+  end
+
+  if not progress.go_back() then
+    vim.notify("coach.nvim: already on the first exercise.", vim.log.levels.INFO)
+    return
+  end
+
+  render_current()
+end
+
+--- Reset the current exercise counts
+function M.reset_exercise()
+  if not active then
+    vim.notify("coach.nvim: coaching is not active.", vim.log.levels.WARN)
+    return
+  end
+
+  progress.reset_current()
+  render_current()
+  vim.notify("coach.nvim: current exercise reset.", vim.log.levels.INFO)
+end
+
+--- Reset all exercise counts and go back to the first exercise
+function M.reset_all()
+  if not active then
+    vim.notify("coach.nvim: coaching is not active.", vim.log.levels.WARN)
+    return
+  end
+
+  progress.reset_all()
+  render_current()
+  vim.notify("coach.nvim: all progress reset.", vim.log.levels.INFO)
+end
+
 --- Check if coaching is active
 ---@return boolean
 function M.is_active()
@@ -123,17 +168,25 @@ function M.setup(opts)
   vim.api.nvim_create_user_command("CoachToggle", function() M.toggle() end, {})
   vim.api.nvim_create_user_command("CoachWindow", function() M.toggle_window() end, {})
   vim.api.nvim_create_user_command("CoachNext", function() M.next_exercise() end, {})
+  vim.api.nvim_create_user_command("CoachPrev", function() M.prev_exercise() end, {})
+  vim.api.nvim_create_user_command("CoachReset", function() M.reset_exercise() end, {})
+  vim.api.nvim_create_user_command("CoachResetAll", function() M.reset_all() end, {})
 
   -- Keybindings
   local keys = vim.tbl_extend("force", {
-    toggle = "<leader>ce",
-    window = "<leader>cs",
-    next = "<leader>cn",
+    toggle = "<leader>kk",
+    window = "<leader>kw",
+    next = "<leader>kn",
+    prev = "<leader>kp",
   }, opts.keybinds or {})
+
+  next_key = keys.next
+  tracker.set_next_key(next_key)
 
   vim.keymap.set("n", keys.toggle, function() M.toggle() end, { desc = "Coach: toggle" })
   vim.keymap.set("n", keys.window, function() M.toggle_window() end, { desc = "Coach: toggle window" })
   vim.keymap.set("n", keys.next, function() M.next_exercise() end, { desc = "Coach: next exercise" })
+  vim.keymap.set("n", keys.prev, function() M.prev_exercise() end, { desc = "Coach: prev exercise" })
 end
 
 return M

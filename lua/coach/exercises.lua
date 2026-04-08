@@ -9,7 +9,7 @@ M.list = {
     id = "02.2",
     title = "Inserting Text",
     actions = {
-      { action = "i", display = "i", desc = "Enter Insert mode (before cursor)" },
+      { action = "i", display = "i", desc = "Insert mode" },
     },
   },
   {
@@ -26,8 +26,8 @@ M.list = {
     id = "02.4",
     title = "Deleting Characters",
     actions = {
-      { action = "x", display = "x", desc = "Delete character under cursor" },
-      { action = "dd", display = "dd", desc = "Delete entire line" },
+      { action = "x", display = "x", desc = "Delete char" },
+      { action = "dd", display = "dd", desc = "Delete line" },
       { action = "J", display = "J", desc = "Join lines" },
     },
   },
@@ -35,18 +35,18 @@ M.list = {
     id = "02.5",
     title = "Undo and Redo",
     actions = {
-      { action = "u", display = "u", desc = "Undo last edit" },
+      { action = "u", display = "u", desc = "Undo" },
       { action = "<C-r>", display = "Ctrl-R", desc = "Redo" },
-      { action = "U", display = "U", desc = "Undo all changes on line" },
+      { action = "U", display = "U", desc = "Undo line" },
     },
   },
   {
     id = "02.6",
     title = "Other Editing Commands",
     actions = {
-      { action = "a", display = "a", desc = "Append (insert after cursor)" },
-      { action = "o", display = "o", desc = "Open line below" },
-      { action = "O", display = "O", desc = "Open line above" },
+      { action = "a", display = "a", desc = "Append" },
+      { action = "o", display = "o", desc = "Open below" },
+      { action = "O", display = "O", desc = "Open above" },
     },
   },
   {
@@ -54,8 +54,8 @@ M.list = {
     title = "Finding Help",
     actions = {
       { action = "<C-]>", display = "Ctrl-]", desc = "Jump to tag" },
-      { action = "<C-t>", display = "Ctrl-T", desc = "Pop tag (go back)" },
-      { action = "<C-o>", display = "Ctrl-O", desc = "Jump to older position" },
+      { action = "<C-t>", display = "Ctrl-T", desc = "Pop tag" },
+      { action = "<C-o>", display = "Ctrl-O", desc = "Jump back" },
     },
   },
 }

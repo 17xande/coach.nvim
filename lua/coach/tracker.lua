@@ -10,6 +10,42 @@ local M = {}
 ---@type fun(action: string, data: table)|nil
 local callback = nil
 
+--- Recent action history for anti-spam (ring buffer of last 3 actions)
+local COOLDOWN = 3
+---@type string[]
+local recent_actions = {}
+
+--- Next keybind string (set from init.lua)
+---@type string
+local next_key = "<leader>kn"
+
+--- Set the keybind string shown in the completion hint
+---@param key string
+function M.set_next_key(key)
+  next_key = key
+end
+
+--- Record an action in the recent history
+---@param action string
+local function push_recent(action)
+  table.insert(recent_actions, action)
+  if #recent_actions > COOLDOWN then
+    table.remove(recent_actions, 1)
+  end
+end
+
+--- Check if an action was performed too recently (anti-spam)
+---@param action string
+---@return boolean true if the action is on cooldown
+local function is_on_cooldown(action)
+  for _, recent in ipairs(recent_actions) do
+    if recent == action then
+      return true
+    end
+  end
+  return false
+end
+
 --- Build a lookup set of actions for the current exercise
 ---@return table<string, boolean>
 local function current_action_set()
@@ -30,13 +66,35 @@ end
 ---@param _data table
 local function on_action(action, _data)
   local action_set = current_action_set()
+
+  -- Track all actions in the recent history for cooldown purposes,
+  -- but only process actions that belong to the current exercise.
   if not action_set[action] then
+    push_recent(action)
     return
   end
 
   if progress.is_action_complete(action) then
+    push_recent(action)
     return
   end
+
+  -- Anti-spam: don't count if this action appears in the last N actions
+  if is_on_cooldown(action) then
+    push_recent(action)
+    vim.schedule(function()
+      if window.is_open() then
+        window.set_message("Repeated actions don't count")
+        local exercise = exercises.get(progress.get_exercise_index())
+        if exercise then
+          window.render(exercise, progress.get_counts(), progress.get_required_reps(), next_key)
+        end
+      end
+    end)
+    return
+  end
+
+  push_recent(action)
 
   local was_complete = progress.is_exercise_complete()
   progress.increment(action)
@@ -47,7 +105,7 @@ local function on_action(action, _data)
     if window.is_open() then
       local exercise = exercises.get(progress.get_exercise_index())
       if exercise then
-        window.render(exercise, progress.get_counts(), progress.get_required_reps())
+        window.render(exercise, progress.get_counts(), progress.get_required_reps(), next_key)
       end
     end
 
@@ -55,7 +113,7 @@ local function on_action(action, _data)
     if not was_complete and now_complete then
       if not window.is_open() then
         vim.notify(
-          "coach.nvim: Exercise complete! Press <leader>cn for next exercise.",
+          "coach.nvim: Exercise complete! Press " .. next_key .. " for next exercise.",
           vim.log.levels.INFO
         )
       end
@@ -76,6 +134,7 @@ function M.start()
     return
   end
 
+  recent_actions = {}
   callback = on_action
   track_action.on_action(callback)
 end
@@ -92,6 +151,7 @@ function M.stop()
   end
 
   callback = nil
+  recent_actions = {}
 end
 
 --- Check if tracker is active

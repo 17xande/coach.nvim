@@ -161,6 +161,34 @@ function M.advance()
   return true
 end
 
+--- Go back to the previous exercise. Returns true if moved, false if already at the start.
+---@return boolean
+function M.go_back()
+  if current_exercise_index <= 1 then
+    return false
+  end
+
+  current_exercise_index = current_exercise_index - 1
+  M.save()
+  return true
+end
+
+--- Reset counts for the current exercise
+function M.reset_current()
+  local exercise = exercises.get(current_exercise_index)
+  if exercise then
+    exercise_counts[exercise.id] = {}
+  end
+  M.save()
+end
+
+--- Reset all progress (all counts, back to first exercise)
+function M.reset_all()
+  current_exercise_index = 1
+  exercise_counts = {}
+  M.save()
+end
+
 --- Get required reps
 ---@return number
 function M.get_required_reps()
