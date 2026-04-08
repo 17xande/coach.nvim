@@ -371,3 +371,196 @@ Notes: `CTRL-I` is the same as `<Tab>`.
 - `CTRL-O` / `CTRL-I` - older/newer jump
 - `m{a-z}` - set mark
 - `` `{a-z} `` / `'{a-z}` - go to mark
+
+---
+---
+
+# Neovim User Manual - Chapter 04 Extraction
+
+Source: `usr_04.txt` - **Making small changes**
+
+> "This chapter shows you several ways of making corrections and moving text
+> around. It teaches you the three basic ways to change text: operator-motion,
+> Visual mode and text objects."
+
+---
+
+## 04.1 - Operators and motions
+<!-- help: 04.1 | :h 04.1 -->
+
+Introduces the **operator-motion** pattern: an operator (`d`, `c`, `y`) followed by a motion.
+
+| Key  | Action                              |
+|------|-------------------------------------|
+| `dw` | Delete from cursor to next word     |
+| `d$` | Delete from cursor to end of line   |
+
+Notes: The key concept is that `d` can be combined with any motion command.
+Counts work with both operator and motion: `d4w`, `3dw`, `3d2w`.
+
+---
+
+## 04.2 - Changing text
+<!-- help: 04.2 | :h 04.2 -->
+
+The `c` (change) operator: deletes text and enters Insert mode.
+
+| Key  | Action                              |
+|------|-------------------------------------|
+| `cc` | Change entire line                  |
+| `r`  | Replace character under cursor      |
+| `s`  | Substitute character (delete + insert) |
+| `S`  | Substitute line (same as `cc`)      |
+| `C`  | Change to end of line (same as `c$`)|
+| `D`  | Delete to end of line (same as `d$`)|
+| `X`  | Delete character before cursor      |
+
+Shortcuts summary:
+- `x` = `dl`, `X` = `dh`, `D` = `d$`
+- `C` = `c$`, `s` = `cl`, `S` = `cc`
+
+---
+
+## 04.3 - Repeating a change
+<!-- help: 04.3 | :h 04.3 -->
+
+| Key | Action                                |
+|-----|---------------------------------------|
+| `.` | Repeat the last change command        |
+
+Notes: Works for all changes except `u`, `CTRL-R`, and `:` commands.
+
+---
+
+## 04.4 - Visual mode
+<!-- help: 04.4 | :h 04.4 -->
+
+| Key      | Action                            |
+|----------|-----------------------------------|
+| `v`      | Start Visual mode (character)     |
+| `V`      | Start Visual mode (line)          |
+| `CTRL-V` | Start Visual mode (block)         |
+
+Notes: Select text visually, then apply an operator (`d`, `c`, `y`, etc.).
+`o` in Visual mode jumps to the other end of selection.
+
+---
+
+## 04.5 - Moving text
+<!-- help: 04.5 | :h 04.5 -->
+
+| Key | Action                                |
+|-----|---------------------------------------|
+| `p` | Put (paste) after cursor              |
+| `P` | Put (paste) before cursor             |
+
+Notes: Deleted/yanked text goes into a register. `p`/`P` paste from it.
+`xp` swaps two characters (delete char, put after).
+
+---
+
+## 04.6 - Copying text
+<!-- help: 04.6 | :h 04.6 -->
+
+| Key  | Action                              |
+|------|-------------------------------------|
+| `yy` | Yank (copy) entire line             |
+| `Y`  | Yank to end of line                 |
+
+Notes: `y` is an operator, so `yw` yanks a word, `y2w` yanks two words, etc.
+
+---
+
+## 04.7 - Using the clipboard
+<!-- help: 04.7 | :h 04.7 -->
+
+| Key     | Action                              |
+|---------|-------------------------------------|
+| `"*yy`  | Yank line to system clipboard       |
+| `"*p`   | Put from system clipboard           |
+
+Notes: Register `"*` accesses the system clipboard. GUI/clipboard-specific section.
+
+---
+
+## 04.8 - Text objects
+<!-- help: 04.8 | :h 04.8 -->
+
+Introduces **operator + text object** pattern:
+
+| Key   | Action                                  |
+|-------|-----------------------------------------|
+| `daw` | Delete a word (including whitespace)    |
+| `diw` | Delete inner word (word only)           |
+| `cis` | Change inner sentence                   |
+| `das` | Delete a sentence (including whitespace)|
+
+Notes: Text objects work from anywhere inside the object, unlike motions.
+Pattern: `{operator}{a/i}{object}` where `a` = "a" (includes surrounding), `i` = "inner".
+
+---
+
+## 04.9 - Replace mode
+<!-- help: 04.9 | :h 04.9 -->
+
+| Key | Action                                |
+|-----|---------------------------------------|
+| `R` | Enter Replace mode (overtype)         |
+
+Notes: Each character typed replaces the one under cursor. `<BS>` restores original.
+
+---
+
+## 04.10 - Conclusion
+<!-- help: 04.10 | :h 04.10 -->
+
+Additional commands mentioned:
+
+| Key | Action                                       |
+|-----|----------------------------------------------|
+| `~` | Toggle case of character under cursor        |
+| `I` | Insert at first non-blank of line            |
+| `A` | Append at end of line                        |
+
+---
+
+## Summary of all keybindings/actions taught in Chapter 04
+
+### Operator-motion combos
+- `dw` - delete word
+- `d$` - delete to end of line
+
+### Change operator and shortcuts
+- `cc` - change line
+- `C` - change to end of line
+- `D` - delete to end of line
+- `s` - substitute character
+- `S` - substitute line
+- `X` - delete char before cursor
+- `r` - replace character
+
+### Repeat
+- `.` - repeat last change
+
+### Visual mode
+- `v` - visual character
+- `V` - visual line
+- `CTRL-V` - visual block
+
+### Put (paste)
+- `p` - put after
+- `P` - put before
+
+### Yank (copy)
+- `yy` - yank line
+- `Y` - yank to end of line
+
+### Text objects (with operators)
+- `daw` / `diw` - delete a/inner word
+- `cis` / `das` - change inner / delete a sentence
+
+### Other
+- `~` - toggle case
+- `I` - insert at line start
+- `A` - append at line end
+- `R` - replace mode
