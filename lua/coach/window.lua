@@ -94,8 +94,15 @@ function M.render(exercise, counts, required_reps, next_key)
   local lines = {}
   local highlights = {} -- { line, col_start, col_end, hl_group }
 
-  -- Top padding
-  table.insert(lines, "")
+  -- Help tag reference
+  if exercise.help_tag then
+    local ref = "  :h " .. exercise.help_tag
+    table.insert(lines, ref)
+    table.insert(highlights, { #lines - 1, 2, #ref, HL_HINT })
+    table.insert(lines, "")
+  else
+    table.insert(lines, "")
+  end
 
   -- Action lines
   local all_complete = true

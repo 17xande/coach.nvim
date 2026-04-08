@@ -146,6 +146,16 @@ function M.reset_all()
   vim.notify("coach.nvim: all progress reset.", vim.log.levels.INFO)
 end
 
+--- Open the help section for the current exercise
+function M.help()
+  local exercise = exercises.get(progress.get_exercise_index())
+  if not exercise or not exercise.help_tag then
+    vim.notify("coach.nvim: no help tag for current exercise.", vim.log.levels.INFO)
+    return
+  end
+  vim.cmd("help " .. exercise.help_tag)
+end
+
 --- Check if coaching is active
 ---@return boolean
 function M.is_active()
@@ -171,6 +181,7 @@ function M.setup(opts)
   vim.api.nvim_create_user_command("CoachPrev", function() M.prev_exercise() end, {})
   vim.api.nvim_create_user_command("CoachReset", function() M.reset_exercise() end, {})
   vim.api.nvim_create_user_command("CoachResetAll", function() M.reset_all() end, {})
+  vim.api.nvim_create_user_command("CoachHelp", function() M.help() end, {})
 
   -- Keybindings
   local keys = vim.tbl_extend("force", {
@@ -178,6 +189,7 @@ function M.setup(opts)
     window = "<leader>kw",
     next = "<leader>kn",
     prev = "<leader>kp",
+    help = "<leader>kh",
   }, opts.keybinds or {})
 
   next_key = keys.next
@@ -187,6 +199,7 @@ function M.setup(opts)
   vim.keymap.set("n", keys.window, function() M.toggle_window() end, { desc = "Coach: toggle window" })
   vim.keymap.set("n", keys.next, function() M.next_exercise() end, { desc = "Coach: next exercise" })
   vim.keymap.set("n", keys.prev, function() M.prev_exercise() end, { desc = "Coach: prev exercise" })
+  vim.keymap.set("n", keys.help, function() M.help() end, { desc = "Coach: open help section" })
 end
 
 return M
