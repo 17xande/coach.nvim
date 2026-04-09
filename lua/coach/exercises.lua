@@ -266,6 +266,52 @@ M.list = {
       { action = "A", display = "A", desc = "Append at line end" },
     },
   },
+
+  -- Chapter 07: Editing more than one file
+
+  {
+    id = "07.3",
+    title = "Alternate File",
+    help_tag = "07.3",
+    actions = {
+      { action = "<C-^>", display = "Ctrl-^", desc = "Alternate file" },
+    },
+  },
+
+  -- Chapter 08: Splitting windows
+
+  {
+    id = "08.4",
+    title = "Window Navigation",
+    help_tag = "08.4",
+    actions = {
+      { action = "<C-w>w", display = "Ctrl-W w", desc = "Next window" },
+      { action = "<C-w>h", display = "Ctrl-W h", desc = "Window left" },
+      { action = "<C-w>j", display = "Ctrl-W j", desc = "Window down" },
+      { action = "<C-w>k", display = "Ctrl-W k", desc = "Window up" },
+      { action = "<C-w>l", display = "Ctrl-W l", desc = "Window right" },
+    },
+  },
+  {
+    id = "08.7",
+    title = "Diff Navigation",
+    help_tag = "08.7",
+    actions = {
+      { action = "]c", display = "]c", desc = "Next change" },
+      { action = "[c", display = "[c", desc = "Prev change" },
+      { action = "dp", display = "dp", desc = "Diff put" },
+      { action = "do", display = "do", desc = "Diff obtain" },
+    },
+  },
+  {
+    id = "08.9",
+    title = "Tab Pages",
+    help_tag = "08.9",
+    actions = {
+      { action = "gt", display = "gt", desc = "Next tab" },
+      { action = "gT", display = "gT", desc = "Prev tab" },
+    },
+  },
 }
 
 --- Get an exercise by its index (1-based)

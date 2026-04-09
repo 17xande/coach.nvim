@@ -564,3 +564,184 @@ Additional commands mentioned:
 - `I` - insert at line start
 - `A` - append at line end
 - `R` - replace mode
+
+---
+---
+
+# Neovim User Manual - Chapter 07 Extraction
+
+Source: `usr_07.txt` - **Editing more than one file**
+
+---
+
+## 07.1 - Edit another file
+<!-- help: 07.1 | :h 07.1 -->
+
+No trackable normal-mode keybindings. Covers `:edit`, `:write`, `:hide edit`.
+
+---
+
+## 07.2 - A list of files
+<!-- help: 07.2 | :h 07.2 -->
+
+No trackable normal-mode keybindings. Covers `:next`, `:previous`, `:last`, `:first`, `:args`.
+
+---
+
+## 07.3 - Jumping from file to file
+<!-- help: 07.3 | :h 07.3 -->
+
+| Key    | Action                                     |
+|--------|--------------------------------------------|
+| `CTRL-^` | Jump to alternate (previously edited) file |
+| `` `" `` | Jump to position where cursor was when left file |
+| `` `. `` | Jump to position of last change in file    |
+
+Notes: `CTRL-^` is the primary key here — fast toggle between two files.
+`` `" `` and `` `. `` are predefined marks; they use the `` ` `` command already covered in 03.10.
+
+---
+
+## 07.4 - Backup files
+<!-- help: 07.4 | :h 07.4 -->
+
+No trackable keybindings. Covers `set backup`, `set backupext`, `set patchmode`.
+
+---
+
+## 07.5 - Copy text between files
+<!-- help: 07.5 | :h 07.5 -->
+
+No new keybindings. Uses commands already covered (Visual mode, `y`, `p`, registers).
+Introduces named registers (`"fyas`, `"l3yy`, `"fp`) — register-prefix syntax extends existing yank/put commands.
+
+---
+
+## 07.6 - Viewing a file
+<!-- help: 07.6 | :h 07.6 -->
+
+No trackable normal-mode keybindings. Covers `vim -R` and `vim -M` read-only modes.
+
+---
+
+## 07.7 - Changing the file name
+<!-- help: 07.7 | :h 07.7 -->
+
+No trackable keybindings. Covers `:saveas`, `:file`.
+
+---
+
+## Summary for Chapter 07
+
+| Exercise | Section | Actions |
+|----------|---------|---------|
+| 1 | 07.3 | `<C-^>` |
+
+---
+---
+
+# Neovim User Manual - Chapter 08 Extraction
+
+Source: `usr_08.txt` - **Splitting windows**
+
+---
+
+## 08.1 - Split a window
+<!-- help: 08.1 | :h 08.1 -->
+
+| Key        | Action                               |
+|------------|--------------------------------------|
+| `CTRL-W w` | Move to next window (cycle)          |
+
+Notes: `:split` opens a second window. `CTRL-W w` (or `CTRL-W CTRL-W`) cycles between them.
+
+---
+
+## 08.2 - Split a window on another file
+<!-- help: 08.2 | :h 08.2 -->
+
+No new trackable keybindings. `:split file`, `:new` are Ex commands.
+
+---
+
+## 08.3 - Window size
+<!-- help: 08.3 | :h 08.3 -->
+
+| Key        | Action                               |
+|------------|--------------------------------------|
+| `CTRL-W +` | Increase window height               |
+| `CTRL-W -` | Decrease window height               |
+| `CTRL-W _` | Maximize window height               |
+| `CTRL-W =` | Make all windows equal size          |
+
+---
+
+## 08.4 - Vertical splits
+<!-- help: 08.4 | :h 08.4 -->
+
+| Key        | Action                               |
+|------------|--------------------------------------|
+| `CTRL-W h` | Move to window on the left           |
+| `CTRL-W j` | Move to window below                 |
+| `CTRL-W k` | Move to window above                 |
+| `CTRL-W l` | Move to window on the right          |
+| `CTRL-W t` | Move to TOP window                   |
+| `CTRL-W b` | Move to BOTTOM window                |
+
+---
+
+## 08.5 - Moving windows
+<!-- help: 08.5 | :h 08.5 -->
+
+| Key        | Action                               |
+|------------|--------------------------------------|
+| `CTRL-W K` | Move window to top (full width)      |
+| `CTRL-W J` | Move window to bottom (full width)   |
+| `CTRL-W H` | Move window to far left (full height)|
+| `CTRL-W L` | Move window to far right (full height)|
+
+---
+
+## 08.6 - Commands for all windows
+<!-- help: 08.6 | :h 08.6 -->
+
+No trackable normal-mode keybindings. Covers `:qall`, `:wall`, `:wqall`.
+
+---
+
+## 08.7 - Viewing differences with diff mode
+<!-- help: 08.7 | :h 08.7 -->
+
+| Key  | Action                                  |
+|------|-----------------------------------------|
+| `]c` | Jump to next change (in diff mode)      |
+| `[c` | Jump to previous change (in diff mode)  |
+| `dp` | Diff put — push change to other window  |
+| `do` | Diff obtain — pull change from other window |
+
+---
+
+## 08.8 - Various
+<!-- help: 08.8 | :h 08.8 -->
+
+No new trackable keybindings. Mentions `CTRL-^` splits (already covered), modifier commands.
+
+---
+
+## 08.9 - Tab pages
+<!-- help: 08.9 | :h 08.9 -->
+
+| Key  | Action                                  |
+|------|-----------------------------------------|
+| `gt` | Go to next tab page                     |
+| `gT` | Go to previous tab page                 |
+
+---
+
+## Summary for Chapter 08
+
+| Exercise | Section | Actions |
+|----------|---------|---------|
+| 1 | 08.1 / 08.4 | `<C-w>w`, `<C-w>h`, `<C-w>j`, `<C-w>k`, `<C-w>l` |
+| 2 | 08.7 | `]c`, `[c`, `dp`, `do` |
+| 3 | 08.9 | `gt`, `gT` |
