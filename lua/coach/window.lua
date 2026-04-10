@@ -235,6 +235,83 @@ function M.render(exercise, counts, required_reps, next_key, shadowed, alternati
   end
 end
 
+--- Render the welcome screen in the floating window
+---@param next_key string Keybind for starting the first exercise
+function M.render_welcome(next_key)
+  if not buf or not vim.api.nvim_buf_is_valid(buf) then
+    return
+  end
+
+  local lines = {}
+  local highlights = {} -- { line, col_start, col_end, hl_group }
+
+  -- Title
+  local title_line = "  coach.nvim"
+  table.insert(lines, title_line)
+  table.insert(highlights, { 0, 2, #title_line, HL_COMPLETE })
+
+  table.insert(lines, "")
+
+  -- Description
+  local desc1 = "  Learn Neovim keybindings through exercises"
+  local desc2 = "  from the user manual."
+  table.insert(lines, desc1)
+  table.insert(highlights, { #lines - 1, 2, #desc1, HL_DESC })
+  table.insert(lines, desc2)
+  table.insert(highlights, { #lines - 1, 2, #desc2, HL_DESC })
+
+  table.insert(lines, "")
+
+  -- Bullet points
+  local bullets = {
+    "  \u{2022} Track actions in your workflow",
+    "  \u{2022} Complete reps to advance",
+  }
+  for _, b in ipairs(bullets) do
+    table.insert(lines, b)
+    table.insert(highlights, { #lines - 1, 2, #b, HL_DESC })
+  end
+
+  table.insert(lines, "")
+
+  -- Keybind hint
+  local hint = "  " .. next_key .. "  begin first exercise"
+  table.insert(lines, hint)
+  table.insert(highlights, { #lines - 1, 2, #hint, HL_HINT })
+
+  table.insert(lines, "")
+
+  -- Write to buffer
+  vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
+
+  -- Apply highlights
+  local ns = vim.api.nvim_create_namespace("coach")
+  vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
+  for _, hl in ipairs(highlights) do
+    vim.api.nvim_buf_add_highlight(buf, ns, hl[4], hl[1], hl[2], hl[3])
+  end
+
+  -- Resize window to fit
+  if win and vim.api.nvim_win_is_valid(win) then
+    local width = 0
+    for _, line in ipairs(lines) do
+      if #line > width then
+        width = #line
+      end
+    end
+    width = math.max(width + 2, 34)
+
+    vim.api.nvim_win_set_config(win, {
+      width = width,
+      height = #lines,
+      title = { { " coach.nvim ", "CoachTitle" } },
+      title_pos = "center",
+    })
+  end
+end
+
 --- Open the floating window
 ---@param title? string Initial title
 function M.open(title)

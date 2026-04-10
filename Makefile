@@ -1,8 +1,8 @@
 NVIM := nvim --headless -u tests/minimal_init.lua
 
-.PHONY: test test-exercises test-progress test-window test-tracker test-keybinds
+.PHONY: test test-exercises test-progress test-window test-tracker test-keybinds test-index
 
-test: test-exercises test-progress test-window test-tracker test-keybinds
+test: test-exercises test-progress test-window test-tracker test-keybinds test-index
 
 test-exercises:
 	$(NVIM) -c "luafile tests/exercises_spec.lua" -c "qa"
@@ -18,3 +18,6 @@ test-tracker:
 
 test-keybinds:
 	$(NVIM) -c "luafile tests/keybinds_spec.lua" -c "qa"
+
+test-index:
+	$(NVIM) -c "luafile tests/index_spec.lua" -c "qa"

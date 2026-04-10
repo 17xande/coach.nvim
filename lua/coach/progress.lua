@@ -11,6 +11,9 @@ local current_exercise_index = 1
 ---@type table<string, table<string, number>>
 local exercise_counts = {}
 
+---@type boolean
+local welcome_shown = false
+
 ---@type string
 local progress_file = vim.fn.stdpath("data") .. "/coach_progress.json"
 
@@ -34,6 +37,7 @@ function M.load()
   if not f then
     current_exercise_index = 1
     exercise_counts = {}
+    welcome_shown = false
     return
   end
 
@@ -44,11 +48,13 @@ function M.load()
   if not ok or type(data) ~= "table" then
     current_exercise_index = 1
     exercise_counts = {}
+    welcome_shown = false
     return
   end
 
   current_exercise_index = data.current_exercise_index or 1
   exercise_counts = data.exercises or {}
+  welcome_shown = data.welcome_shown == true
 
   -- Clamp index to valid range
   if current_exercise_index < 1 then
@@ -63,6 +69,7 @@ function M.save()
   local data = {
     current_exercise_index = current_exercise_index,
     exercises = exercise_counts,
+    welcome_shown = welcome_shown,
   }
 
   local json = vim.json.encode(data)
@@ -196,6 +203,36 @@ end
 ---@return number
 function M.get_required_reps()
   return required_reps
+end
+
+--- Check if the welcome screen has never been shown
+---@return boolean
+function M.is_welcome_pending()
+  return not welcome_shown
+end
+
+--- Mark the welcome screen as shown (caller should save)
+function M.mark_welcome_shown()
+  welcome_shown = true
+end
+
+--- Jump to a specific exercise index, clamped to valid range, and save
+---@param index number
+function M.go_to(index)
+  local count = exercises.count()
+  if index < 1 then
+    index = 1
+  elseif index > count then
+    index = count
+  end
+  current_exercise_index = index
+  M.save()
+end
+
+--- Return the full exercise_counts table
+---@return table<string, table<string, number>>
+function M.get_all_exercise_counts()
+  return exercise_counts
 end
 
 return M

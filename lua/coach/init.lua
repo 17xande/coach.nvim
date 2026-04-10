@@ -2,6 +2,7 @@
 -- Public API
 
 local exercises = require("coach.exercises")
+local index = require("coach.index")
 local keybinds = require("coach.keybinds")
 local progress = require("coach.progress")
 local window = require("coach.window")
@@ -11,6 +12,9 @@ local M = {}
 
 ---@type boolean
 local active = false
+
+---@type boolean
+local welcome_active = false
 
 ---@type number|nil
 local save_autocmd = nil
@@ -40,7 +44,12 @@ function M.start()
   progress.load()
   tracker.start()
   window.open()
-  render_current()
+  if progress.is_welcome_pending() then
+    welcome_active = true
+    window.render_welcome(next_key)
+  else
+    render_current()
+  end
   active = true
 
   -- Auto-save on exit
@@ -97,6 +106,14 @@ function M.next_exercise()
     return
   end
 
+  if welcome_active then
+    welcome_active = false
+    progress.mark_welcome_shown()
+    progress.save()
+    render_current()
+    return
+  end
+
   local exercise = exercises.get(progress.get_exercise_index())
   local shadowed = exercise and keybinds.get_shadowed(exercise) or {}
 
@@ -117,6 +134,14 @@ end
 function M.skip_exercise()
   if not active then
     vim.notify("coach.nvim: coaching is not active.", vim.log.levels.WARN)
+    return
+  end
+
+  if welcome_active then
+    welcome_active = false
+    progress.mark_welcome_shown()
+    progress.save()
+    render_current()
     return
   end
 
@@ -177,6 +202,21 @@ function M.help()
   vim.cmd("help " .. exercise.help_tag)
 end
 
+--- Toggle the index sidebar window
+function M.toggle_index()
+  if not active then
+    vim.notify("coach.nvim: coaching is not active. Use :CoachStart first.", vim.log.levels.WARN)
+    return
+  end
+
+  index.toggle(function(ex_idx)
+    progress.go_to(ex_idx)
+    welcome_active = false
+    window.open()
+    render_current()
+  end)
+end
+
 --- Check if coaching is active
 ---@return boolean
 function M.is_active()
@@ -184,7 +224,7 @@ function M.is_active()
 end
 
 --- Setup the plugin
----@param opts? { required_reps?: number, progress_file?: string, keybinds?: { toggle?: string, window?: string, next?: string } }
+---@param opts? { required_reps?: number, progress_file?: string, keybinds?: { toggle?: string, window?: string, next?: string, prev?: string, help?: string, skip?: string, index?: string } }
 function M.setup(opts)
   opts = opts or {}
 
@@ -204,6 +244,7 @@ function M.setup(opts)
   vim.api.nvim_create_user_command("CoachResetAll", function() M.reset_all() end, {})
   vim.api.nvim_create_user_command("CoachSkip", function() M.skip_exercise() end, {})
   vim.api.nvim_create_user_command("CoachHelp", function() M.help() end, {})
+  vim.api.nvim_create_user_command("CoachIndex", function() M.toggle_index() end, {})
 
   -- Keybindings
   local keys = vim.tbl_extend("force", {
@@ -212,6 +253,8 @@ function M.setup(opts)
     next = "<leader>kn",
     prev = "<leader>kp",
     help = "<leader>kh",
+    skip = "<leader>ks",
+    index = "<leader>ki",
   }, opts.keybinds or {})
 
   next_key = keys.next
@@ -222,6 +265,8 @@ function M.setup(opts)
   vim.keymap.set("n", keys.next, function() M.next_exercise() end, { desc = "Coach: next exercise" })
   vim.keymap.set("n", keys.prev, function() M.prev_exercise() end, { desc = "Coach: prev exercise" })
   vim.keymap.set("n", keys.help, function() M.help() end, { desc = "Coach: open help section" })
+  vim.keymap.set("n", keys.skip, function() M.skip_exercise() end, { desc = "Coach: skip exercise" })
+  vim.keymap.set("n", keys.index, function() M.toggle_index() end, { desc = "Coach: toggle index" })
 end
 
 return M
