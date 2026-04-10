@@ -132,16 +132,19 @@ function M.is_action_complete(action)
   return M.get_count(action) >= required_reps
 end
 
---- Check if the current exercise is complete
+--- Check if the current exercise is complete.
+--- Shadowed actions are skipped — they count as already done.
+---@param shadowed? table<string, any> Set of shadowed action keys to ignore
 ---@return boolean
-function M.is_exercise_complete()
+function M.is_exercise_complete(shadowed)
+  shadowed = shadowed or {}
   local exercise = exercises.get(current_exercise_index)
   if not exercise then
     return false
   end
 
   for _, a in ipairs(exercise.actions) do
-    if not M.is_action_complete(a.action) then
+    if not shadowed[a.action] and not M.is_action_complete(a.action) then
       return false
     end
   end

@@ -117,6 +117,65 @@ describe("window", function()
     end)
   end)
 
+  describe("render with shadowed actions", function()
+    it("renders shadowed action without crash", function()
+      window.open()
+      local shadowed = { ["h"] = "Prev Buffer" }
+      window.render(sample_exercise, {}, 20, "<leader>kn", shadowed)
+      is_true(window.is_open())
+      window.close()
+    end)
+
+    it("renders all-shadowed exercise (vacuously complete)", function()
+      window.open()
+      local shadowed = { ["h"] = true, ["j"] = true }
+      window.render(sample_exercise, {}, 20, "<leader>kn", shadowed)
+      is_true(window.is_open())
+      window.close()
+    end)
+
+    it("renders mix of shadowed and normal actions", function()
+      window.open()
+      local shadowed = { ["h"] = "Mapped away" }
+      window.render(sample_exercise, { j = 10 }, 20, "<leader>kn", shadowed)
+      is_true(window.is_open())
+      window.close()
+    end)
+
+    it("empty shadowed table behaves like no shadowed", function()
+      window.open()
+      window.render(sample_exercise, { h = 5, j = 10 }, 20, "<leader>kn", {})
+      is_true(window.is_open())
+      window.close()
+    end)
+  end)
+
+  describe("render with alternatives", function()
+    it("renders with alternatives without crash", function()
+      window.open()
+      local alts = { ["h"] = { "Ctrl-H" } }
+      window.render(sample_exercise, { h = 5 }, 20, "<leader>kn", {}, alts)
+      is_true(window.is_open())
+      window.close()
+    end)
+
+    it("renders with empty alternatives table", function()
+      window.open()
+      window.render(sample_exercise, {}, 20, "<leader>kn", {}, {})
+      is_true(window.is_open())
+      window.close()
+    end)
+
+    it("renders with both shadowed and alternatives", function()
+      window.open()
+      local shadowed = { ["h"] = true }
+      local alts = { ["j"] = { "Ctrl-J" } }
+      window.render(sample_exercise, { j = 5 }, 20, "<leader>kn", shadowed, alts)
+      is_true(window.is_open())
+      window.close()
+    end)
+  end)
+
   describe("set_message", function()
     it("does not crash", function()
       window.open()

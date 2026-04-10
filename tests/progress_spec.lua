@@ -243,6 +243,47 @@ describe("progress", function()
     end)
   end)
 
+  describe("is_exercise_complete with shadowed", function()
+    it("shadowed action does not block completion", function()
+      cleanup()
+      local p = fresh_progress()
+      -- exercise 1 (02.2) has only "i" — mark it shadowed
+      is_true(p.is_exercise_complete({ ["i"] = true }))
+    end)
+
+    it("non-shadowed incomplete action still blocks", function()
+      cleanup()
+      local p = fresh_progress()
+      -- advance to exercise 2 (02.3: h, j, k, l)
+      for _ = 1, 3 do p.increment("i") end
+      p.advance()
+      -- complete h and j but not k and l; shadow k
+      for _ = 1, 3 do p.increment("h") end
+      for _ = 1, 3 do p.increment("j") end
+      is_false(p.is_exercise_complete({ ["k"] = true }))
+    end)
+
+    it("all non-shadowed done means exercise complete", function()
+      cleanup()
+      local p = fresh_progress()
+      -- advance to exercise 2
+      for _ = 1, 3 do p.increment("i") end
+      p.advance()
+      -- complete h and j; shadow k and l
+      for _ = 1, 3 do p.increment("h") end
+      for _ = 1, 3 do p.increment("j") end
+      is_true(p.is_exercise_complete({ ["k"] = true, ["l"] = true }))
+    end)
+
+    it("nil shadowed behaves like no shadowed", function()
+      cleanup()
+      local p = fresh_progress()
+      is_false(p.is_exercise_complete(nil))
+      for _ = 1, 3 do p.increment("i") end
+      is_true(p.is_exercise_complete(nil))
+    end)
+  end)
+
 end)
 
 cleanup()

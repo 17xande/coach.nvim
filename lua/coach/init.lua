@@ -2,6 +2,7 @@
 -- Public API
 
 local exercises = require("coach.exercises")
+local keybinds = require("coach.keybinds")
 local progress = require("coach.progress")
 local window = require("coach.window")
 local tracker = require("coach.tracker")
@@ -21,7 +22,9 @@ local next_key = "<leader>kn"
 local function render_current()
   local exercise = exercises.get(progress.get_exercise_index())
   if exercise then
-    window.render(exercise, progress.get_counts(), progress.get_required_reps(), next_key)
+    local shadowed = keybinds.get_shadowed(exercise)
+    local alternatives = keybinds.get_alternatives(exercise)
+    window.render(exercise, progress.get_counts(), progress.get_required_reps(), next_key, shadowed, alternatives)
   end
 end
 
@@ -94,13 +97,31 @@ function M.next_exercise()
     return
   end
 
-  if not progress.is_exercise_complete() then
+  local exercise = exercises.get(progress.get_exercise_index())
+  local shadowed = exercise and keybinds.get_shadowed(exercise) or {}
+
+  if not progress.is_exercise_complete(shadowed) then
     vim.notify("coach.nvim: complete the current exercise first.", vim.log.levels.INFO)
     return
   end
 
   if not progress.advance() then
     vim.notify("coach.nvim: you've completed all exercises!", vim.log.levels.INFO)
+    return
+  end
+
+  render_current()
+end
+
+--- Skip to the next exercise (regardless of completion)
+function M.skip_exercise()
+  if not active then
+    vim.notify("coach.nvim: coaching is not active.", vim.log.levels.WARN)
+    return
+  end
+
+  if not progress.advance() then
+    vim.notify("coach.nvim: already on the last exercise.", vim.log.levels.INFO)
     return
   end
 
@@ -181,6 +202,7 @@ function M.setup(opts)
   vim.api.nvim_create_user_command("CoachPrev", function() M.prev_exercise() end, {})
   vim.api.nvim_create_user_command("CoachReset", function() M.reset_exercise() end, {})
   vim.api.nvim_create_user_command("CoachResetAll", function() M.reset_all() end, {})
+  vim.api.nvim_create_user_command("CoachSkip", function() M.skip_exercise() end, {})
   vim.api.nvim_create_user_command("CoachHelp", function() M.help() end, {})
 
   -- Keybindings

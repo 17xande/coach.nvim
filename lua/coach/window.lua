@@ -18,6 +18,7 @@ local HL_TICK = "CoachTick"
 local HL_COMPLETE = "CoachComplete"
 local HL_HINT = "CoachHint"
 local HL_WARN = "CoachWarn"
+local HL_SHADOWED = "CoachShadowed"
 
 --- Setup highlight groups
 local function setup_highlights()
@@ -34,6 +35,7 @@ local function setup_highlights()
   set(0, HL_COMPLETE, { fg = "#9ece6a", bold = true, default = true })
   set(0, HL_HINT, { fg = "#7aa2f7", italic = true, default = true })
   set(0, HL_WARN, { fg = "#e0af68", italic = true, default = true })
+  set(0, HL_SHADOWED, { fg = "#565f89", italic = true, default = true })
 end
 
 --- Build a progress bar string
@@ -85,11 +87,15 @@ end
 ---@param counts table<string, number> Action counts
 ---@param required_reps number
 ---@param next_key string Keybind for next exercise
-function M.render(exercise, counts, required_reps, next_key)
+---@param shadowed? table<string, any> Set of shadowed action keys
+---@param alternatives? table<string, string[]> Alternative keybind displays per action
+function M.render(exercise, counts, required_reps, next_key, shadowed, alternatives)
   if not buf or not vim.api.nvim_buf_is_valid(buf) then
     return
   end
 
+  shadowed = shadowed or {}
+  alternatives = alternatives or {}
   local bar_width = 6
   local lines = {}
   local highlights = {} -- { line, col_start, col_end, hl_group }
@@ -104,41 +110,73 @@ function M.render(exercise, counts, required_reps, next_key)
     table.insert(lines, "")
   end
 
+  -- Compute display column width (accounting for alternatives)
+  local display_width = 7
+  for _, a in ipairs(exercise.actions) do
+    local d = a.display
+    if not shadowed[a.action] and alternatives[a.action] and #alternatives[a.action] > 0 then
+      d = d .. " / " .. table.concat(alternatives[a.action], " / ")
+    end
+    display_width = math.max(display_width, #d + 2)
+  end
+
   -- Action lines
   local all_complete = true
   for _, a in ipairs(exercise.actions) do
-    local count = math.min(counts[a.action] or 0, required_reps)
-    local complete = count >= required_reps
-    if not complete then
-      all_complete = false
+    -- Build display string with alternatives
+    local display_text = a.display
+    if not shadowed[a.action] and alternatives[a.action] and #alternatives[a.action] > 0 then
+      display_text = display_text .. " / " .. table.concat(alternatives[a.action], " / ")
     end
-
-    local filled, empty = progress_bar(count, required_reps, bar_width)
-    local count_str = string.format("%2d/%d", count, required_reps)
-    local tick = complete and " \u{2713}" or ""
-
-    -- Compact: "  h  left     ██░░  5/20"
-    local display = string.format("%-7s", a.display)
-    local desc = string.format("%-14s", a.desc)
-    local line = "  " .. display .. desc .. filled .. empty .. " " .. count_str .. tick
-
+    local display = string.format("%-" .. display_width .. "s", display_text)
+    local desc_str = string.format("%-14s", a.desc)
     local line_idx = #lines
-    table.insert(lines, line)
 
-    -- Highlights
-    local col = 2
-    table.insert(highlights, { line_idx, col, col + #display, HL_ACTION })
-    col = col + #display
-    table.insert(highlights, { line_idx, col, col + #desc, HL_DESC })
-    col = col + #desc
-    table.insert(highlights, { line_idx, col, col + #filled, HL_BAR_FILLED })
-    col = col + #filled
-    table.insert(highlights, { line_idx, col, col + #empty, HL_BAR_EMPTY })
-    col = col + #empty + 1
-    table.insert(highlights, { line_idx, col, col + #count_str, HL_COUNT })
-    if complete then
-      col = col + #count_str
-      table.insert(highlights, { line_idx, col, col + #tick, HL_TICK })
+    if shadowed[a.action] then
+      -- Shadowed: show a dim indicator instead of progress
+      local indicator = "\u{2014} shadowed"
+      local line = "  " .. display .. desc_str .. indicator
+      table.insert(lines, line)
+
+      local col = 2
+      table.insert(highlights, { line_idx, col, col + #display, HL_ACTION })
+      col = col + #display
+      table.insert(highlights, { line_idx, col, col + #desc_str, HL_SHADOWED })
+      col = col + #desc_str
+      table.insert(highlights, { line_idx, col, col + #indicator, HL_SHADOWED })
+    else
+      local count = math.min(counts[a.action] or 0, required_reps)
+      local complete = count >= required_reps
+      if not complete then
+        all_complete = false
+      end
+
+      local filled, empty = progress_bar(count, required_reps, bar_width)
+      local count_str = string.format("%2d/%d", count, required_reps)
+      local tick = complete and " \u{2713}" or ""
+
+      local line = "  " .. display .. desc_str .. filled .. empty .. " " .. count_str .. tick
+      table.insert(lines, line)
+
+      -- Highlights for display (base key + alternatives)
+      local col = 2
+      local base_len = #a.display
+      table.insert(highlights, { line_idx, col, col + base_len, HL_ACTION })
+      if #display_text > base_len then
+        table.insert(highlights, { line_idx, col + base_len, col + #display_text, HL_HINT })
+      end
+      col = col + #display
+      table.insert(highlights, { line_idx, col, col + #desc_str, HL_DESC })
+      col = col + #desc_str
+      table.insert(highlights, { line_idx, col, col + #filled, HL_BAR_FILLED })
+      col = col + #filled
+      table.insert(highlights, { line_idx, col, col + #empty, HL_BAR_EMPTY })
+      col = col + #empty + 1
+      table.insert(highlights, { line_idx, col, col + #count_str, HL_COUNT })
+      if complete then
+        col = col + #count_str
+        table.insert(highlights, { line_idx, col, col + #tick, HL_TICK })
+      end
     end
   end
 

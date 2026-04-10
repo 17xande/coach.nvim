@@ -1,6 +1,7 @@
 -- Bridge to track-action.nvim
 
 local exercises = require("coach.exercises")
+local keybinds = require("coach.keybinds")
 local progress = require("coach.progress")
 local window = require("coach.window")
 
@@ -46,6 +47,19 @@ local function is_on_cooldown(action)
   return false
 end
 
+--- Resolve which action string to use for exercise matching.
+--- Prefers data.native (canonical native key) when available,
+--- falling back to the raw action string from track-action.
+---@param action string Action string from track-action callback
+---@param data table|nil Data table from track-action (may contain .native)
+---@return string The action string to match against exercise actions
+function M.resolve_match_action(action, data)
+  if data and data.native then
+    return data.native
+  end
+  return action
+end
+
 --- Build a lookup set of actions for the current exercise
 ---@return table<string, boolean>
 local function current_action_set()
@@ -63,18 +77,19 @@ end
 
 --- Handle an action from track-action.nvim
 ---@param action string
----@param _data table
-local function on_action(action, _data)
+---@param data table
+local function on_action(action, data)
   local action_set = current_action_set()
+  local match_action = M.resolve_match_action(action, data)
 
   -- Track all actions in the recent history for cooldown purposes,
   -- but only process actions that belong to the current exercise.
-  if not action_set[action] then
+  if not action_set[match_action] then
     push_recent(action)
     return
   end
 
-  if progress.is_action_complete(action) then
+  if progress.is_action_complete(match_action) then
     push_recent(action)
     return
   end
@@ -87,7 +102,9 @@ local function on_action(action, _data)
         window.set_message("Repeated actions don't count")
         local exercise = exercises.get(progress.get_exercise_index())
         if exercise then
-          window.render(exercise, progress.get_counts(), progress.get_required_reps(), next_key)
+          local shadowed = keybinds.get_shadowed(exercise)
+          local alternatives = keybinds.get_alternatives(exercise)
+          window.render(exercise, progress.get_counts(), progress.get_required_reps(), next_key, shadowed, alternatives)
         end
       end
     end)
@@ -96,16 +113,21 @@ local function on_action(action, _data)
 
   push_recent(action)
 
-  local was_complete = progress.is_exercise_complete()
-  progress.increment(action)
-  local now_complete = progress.is_exercise_complete()
+  local exercise = exercises.get(progress.get_exercise_index())
+  local shadowed = exercise and keybinds.get_shadowed(exercise) or {}
+
+  local was_complete = progress.is_exercise_complete(shadowed)
+  progress.increment(match_action)
+  local now_complete = progress.is_exercise_complete(shadowed)
 
   -- Update window if open
   vim.schedule(function()
     if window.is_open() then
-      local exercise = exercises.get(progress.get_exercise_index())
-      if exercise then
-        window.render(exercise, progress.get_counts(), progress.get_required_reps(), next_key)
+      local ex = exercises.get(progress.get_exercise_index())
+      if ex then
+        local sh = keybinds.get_shadowed(ex)
+        local alts = keybinds.get_alternatives(ex)
+        window.render(ex, progress.get_counts(), progress.get_required_reps(), next_key, sh, alts)
       end
     end
 

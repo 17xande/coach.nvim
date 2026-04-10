@@ -152,6 +152,49 @@ describe("tracker anti-spam logic", function()
 
 end)
 
+describe("resolve_match_action", function()
+  -- Test the function that decides which action string to use for exercise matching.
+  -- Given the action from track-action and the data table (which may include data.native),
+  -- resolve_match_action returns the string to match against the exercise action set.
+
+  local function fresh_tracker()
+    package.loaded["coach.tracker"] = nil
+    return require("coach.tracker")
+  end
+
+  it("returns data.native when present", function()
+    local tracker = fresh_tracker()
+    local result = tracker.resolve_match_action("ex:vsplit", { native = "<C-w>v" })
+    eq("<C-w>v", result)
+  end)
+
+  it("falls back to action when data.native is nil", function()
+    local tracker = fresh_tracker()
+    local result = tracker.resolve_match_action("<C-w>v", { native = nil })
+    eq("<C-w>v", result)
+  end)
+
+  it("falls back to action when data.native is absent", function()
+    local tracker = fresh_tracker()
+    local result = tracker.resolve_match_action("h", {})
+    eq("h", result)
+  end)
+
+  it("falls back to action when data is nil", function()
+    local tracker = fresh_tracker()
+    local result = tracker.resolve_match_action("h", nil)
+    eq("h", result)
+  end)
+
+  it("uses native for remapped window commands", function()
+    local tracker = fresh_tracker()
+    -- Simulates: <C-h> mapped to <cmd>wincmd h<cr>, track-action emits ex:wincmd
+    -- with native = "<C-w>h"
+    local result = tracker.resolve_match_action("<C-h>", { native = "<C-w>h" })
+    eq("<C-w>h", result)
+  end)
+end)
+
 describe("tracker module", function()
   it("is_active returns false initially", function()
     -- force fresh load
