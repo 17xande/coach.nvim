@@ -124,7 +124,8 @@ function M.increment(action)
 
   local counts = exercise_counts[exercise.id]
   local current = counts[action] or 0
-  if current >= required_reps then
+  local reps = exercise.required_reps or required_reps
+  if current >= reps then
     return current
   end
 
@@ -136,7 +137,9 @@ end
 ---@param action string
 ---@return boolean
 function M.is_action_complete(action)
-  return M.get_count(action) >= required_reps
+  local exercise = exercises.get(current_exercise_index)
+  local reps = (exercise and exercise.required_reps) or required_reps
+  return M.get_count(action) >= reps
 end
 
 --- Check if the current exercise is complete.

@@ -15,12 +15,17 @@ local win = nil
 ---@type table<number, number>
 local line_to_exercise = {}
 
+--- Callback to invoke when the index is dismissed without selecting
+---@type function|nil
+local pending_on_close = nil
+
 local function setup_highlights()
   local set = vim.api.nvim_set_hl
-  set(0, "CoachIndexCurrent", { bold = true, fg = "#7aa2f7", default = true })
+  set(0, "CoachIndexCurrent",  { bold = true, fg = "#7aa2f7", default = true })
   set(0, "CoachIndexComplete", { fg = "#9ece6a", default = true })
-  set(0, "CoachIndexTitle", { fg = "#a9b1d6", default = true })
-  set(0, "CoachIndexMuted", { fg = "#565f89", default = true })
+  set(0, "CoachIndexProgress", { fg = "#7dcfff", default = true })
+  set(0, "CoachIndexTitle",    { fg = "#a9b1d6", default = true })
+  set(0, "CoachIndexMuted",    { fg = "#565f89", default = true })
 end
 
 local function render(current_index, all_counts, required_reps)
@@ -43,6 +48,7 @@ local function render(current_index, all_counts, required_reps)
     if ex then
       local ex_counts = all_counts[ex.id] or {}
       local is_current = (i == current_index)
+      local ex_reps = ex.required_reps or required_reps
 
       -- Determine completion status
       local all_done = true
@@ -52,7 +58,7 @@ local function render(current_index, all_counts, required_reps)
         if c > 0 then
           any_progress = true
         end
-        if c < required_reps then
+        if c < ex_reps then
           all_done = false
         end
       end
@@ -60,19 +66,18 @@ local function render(current_index, all_counts, required_reps)
 
       local icon
       local hl_group
-      if is_complete then
-        icon = "\u{2713} "
-        hl_group = "CoachIndexComplete"
-      elseif any_progress or is_current then
-        icon = "\u{25CF} "
-        hl_group = "CoachIndexCurrent"
-      else
-        icon = "  "
-        hl_group = "CoachIndexMuted"
-      end
-
       if is_current then
+        icon = "\u{25B6} "   -- ▶  current exercise (always takes priority)
         hl_group = "CoachIndexCurrent"
+      elseif is_complete then
+        icon = "\u{2713} "   -- ✓  fully done
+        hl_group = "CoachIndexComplete"
+      elseif any_progress then
+        icon = "\u{25CF} "   -- ●  started but not done
+        hl_group = "CoachIndexProgress"
+      else
+        icon = "  "           -- not started
+        hl_group = "CoachIndexMuted"
       end
 
       local id_str = string.format("%-6s", ex.id)
@@ -115,12 +120,15 @@ end
 
 --- Open the index sidebar window
 ---@param on_select function|nil Called with exercise index (1-based) when user selects
-function M.open(on_select)
+---@param on_close function|nil Called when the index is dismissed without selecting
+function M.open(on_select, on_close)
   setup_highlights()
 
   if win and vim.api.nvim_win_is_valid(win) then
     return
   end
+
+  pending_on_close = on_close
 
   buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_set_option_value("buftype", "nofile", { buf = buf })
@@ -140,13 +148,16 @@ function M.open(on_select)
   vim.api.nvim_set_option_value("cursorline", true, { win = win })
   vim.api.nvim_set_option_value("winhighlight", "Normal:NormalFloat", { win = win })
 
-  -- Clean up state when window is closed externally
+  -- Clean up state when window is closed (externally or via M.close)
   vim.api.nvim_create_autocmd("WinClosed", {
     pattern = tostring(win),
     once = true,
     callback = function()
       win = nil
       buf = nil
+      local cb = pending_on_close
+      pending_on_close = nil
+      if cb then cb() end
     end,
   })
 
@@ -156,6 +167,7 @@ function M.open(on_select)
     local cursor_line = vim.api.nvim_win_get_cursor(win)[1] - 1
     local ex_idx = line_to_exercise[cursor_line]
     if ex_idx and on_select then
+      pending_on_close = nil  -- selecting: don't fire on_close
       M.close()
       on_select(ex_idx)
     end
@@ -184,11 +196,12 @@ end
 
 --- Toggle the index window
 ---@param on_select function|nil
-function M.toggle(on_select)
+---@param on_close function|nil
+function M.toggle(on_select, on_close)
   if M.is_open() then
     M.close()
   else
-    M.open(on_select)
+    M.open(on_select, on_close)
   end
 end
 

@@ -362,6 +362,65 @@ describe("progress", function()
     end)
   end)
 
+  describe("per-exercise required_reps", function()
+    it("exercise required_reps overrides global for increment cap", function()
+      cleanup()
+      -- Temporarily patch the first exercise to require only 2 reps
+      local exercises = require("coach.exercises")
+      local orig = exercises.list[1].required_reps
+      exercises.list[1].required_reps = 2
+
+      local p = fresh_progress()  -- global required_reps = 3
+      p.increment("i")
+      p.increment("i")
+      -- Third increment should not go past 2
+      p.increment("i")
+      eq(2, p.get_count("i"))
+
+      exercises.list[1].required_reps = orig
+    end)
+
+    it("exercise required_reps overrides global for is_action_complete", function()
+      cleanup()
+      local exercises = require("coach.exercises")
+      local orig = exercises.list[1].required_reps
+      exercises.list[1].required_reps = 1
+
+      local p = fresh_progress()
+      p.increment("i")
+      is_true(p.is_action_complete("i"))
+
+      exercises.list[1].required_reps = orig
+    end)
+
+    it("exercise required_reps overrides global for is_exercise_complete", function()
+      cleanup()
+      local exercises = require("coach.exercises")
+      local orig = exercises.list[1].required_reps
+      exercises.list[1].required_reps = 1
+
+      local p = fresh_progress()
+      p.increment("i")
+      is_true(p.is_exercise_complete())
+
+      exercises.list[1].required_reps = orig
+    end)
+
+    it("falls back to global required_reps when not set on exercise", function()
+      cleanup()
+      local exercises = require("coach.exercises")
+      -- Ensure no override is present
+      exercises.list[1].required_reps = nil
+
+      local p = fresh_progress()  -- global required_reps = 3
+      p.increment("i")
+      p.increment("i")
+      is_false(p.is_action_complete("i"))
+      p.increment("i")
+      is_true(p.is_action_complete("i"))
+    end)
+  end)
+
 end)
 
 cleanup()

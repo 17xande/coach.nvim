@@ -55,6 +55,10 @@ local function progress_bar(count, total, width)
   return string.rep("\u{2588}", filled), string.rep("\u{2591}", empty)
 end
 
+--- Hook called when the current exercise completes (set by init.lua)
+---@type function|nil
+M._on_exercise_complete = nil
+
 --- Pending message to display (set externally, cleared after render)
 ---@type string|nil
 local pending_message = nil

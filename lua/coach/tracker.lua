@@ -104,7 +104,8 @@ local function on_action(action, data)
         if exercise then
           local shadowed = keybinds.get_shadowed(exercise)
           local alternatives = keybinds.get_alternatives(exercise)
-          window.render(exercise, progress.get_counts(), progress.get_required_reps(), next_key, shadowed, alternatives)
+          local reps = exercise.required_reps or progress.get_required_reps()
+          window.render(exercise, progress.get_counts(), reps, next_key, shadowed, alternatives)
         end
       end
     end)
@@ -127,19 +128,20 @@ local function on_action(action, data)
       if ex then
         local sh = keybinds.get_shadowed(ex)
         local alts = keybinds.get_alternatives(ex)
-        window.render(ex, progress.get_counts(), progress.get_required_reps(), next_key, sh, alts)
+        local reps = ex.required_reps or progress.get_required_reps()
+        window.render(ex, progress.get_counts(), reps, next_key, sh, alts)
       end
     end
 
     -- Notify on exercise completion
     if not was_complete and now_complete then
       if not window.is_open() then
-        vim.notify(
-          "coach.nvim: Exercise complete! Press " .. next_key .. " for next exercise.",
-          vim.log.levels.INFO
-        )
+        vim.notify("coach.nvim: Exercise complete!", vim.log.levels.INFO)
       end
       progress.save()
+      if window._on_exercise_complete then
+        window._on_exercise_complete()
+      end
     end
   end)
 end
