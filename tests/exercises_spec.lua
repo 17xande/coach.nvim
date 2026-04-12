@@ -16,6 +16,7 @@ describe("exercises", function()
     it("returns first exercise", function()
       local e = exercises.get(1)
       is_true(e ~= nil, "first exercise should exist")
+      if not e then return end
       eq("02.2", e.id)
       eq("Inserting Text", e.title)
     end)
@@ -35,6 +36,7 @@ describe("exercises", function()
   describe("exercise structure", function()
     for i = 1, exercises.count() do
       local e = exercises.get(i)
+      if not e then break end
       it("exercise " .. e.id .. " has required fields", function()
         is_true(type(e.id) == "string", "id should be string")
         is_true(type(e.title) == "string", "title should be string")
@@ -48,6 +50,7 @@ describe("exercises", function()
   describe("action structure", function()
     for i = 1, exercises.count() do
       local e = exercises.get(i)
+      if not e then break end
       for _, a in ipairs(e.actions) do
         it(e.id .. " action '" .. a.action .. "' has required fields", function()
           is_true(type(a.action) == "string", "action should be string")
@@ -66,6 +69,7 @@ describe("exercises", function()
       local seen = {}
       for i = 1, exercises.count() do
         local e = exercises.get(i)
+        if not e then break end
         is_true(not seen[e.id], "duplicate ID: " .. e.id)
         seen[e.id] = true
       end

@@ -227,7 +227,7 @@ describe("progress", function()
 
     it("handles corrupt file gracefully", function()
       cleanup()
-      local f = io.open(tmp_file, "w")
+      local f = assert(io.open(tmp_file, "w"))
       f:write("not json{{{")
       f:close()
       local p = fresh_progress()

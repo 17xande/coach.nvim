@@ -104,7 +104,7 @@ local function render(current_index, all_counts, required_reps)
   local ns = vim.api.nvim_create_namespace("coach_index")
   vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
   for _, hl in ipairs(highlights) do
-    vim.api.nvim_buf_add_highlight(buf, ns, hl[4], hl[1], hl[2], hl[3])
+    vim.api.nvim_buf_set_extmark(buf, ns, hl[1], hl[2], { end_col = hl[3], hl_group = hl[4] })
   end
 
   -- Move cursor to the current exercise row

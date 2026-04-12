@@ -64,7 +64,6 @@ M._on_exercise_complete = nil
 local pending_message = nil
 
 --- Timer for clearing the message
----@type uv_timer_t|nil
 local message_timer = nil
 
 --- Set a temporary message to show on next render
@@ -74,8 +73,10 @@ function M.set_message(msg)
 
   if message_timer then
     message_timer:stop()
+    message_timer:close()
   end
   message_timer = vim.uv.new_timer()
+  if not message_timer then return end
   message_timer:start(2000, 0, vim.schedule_wrap(function()
     pending_message = nil
     message_timer = nil
@@ -216,7 +217,7 @@ function M.render(exercise, counts, required_reps, next_key, shadowed, alternati
   local ns = vim.api.nvim_create_namespace("coach")
   vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
   for _, hl in ipairs(highlights) do
-    vim.api.nvim_buf_add_highlight(buf, ns, hl[4], hl[1], hl[2], hl[3])
+    vim.api.nvim_buf_set_extmark(buf, ns, hl[1], hl[2], { end_col = hl[3], hl_group = hl[4] })
   end
 
   -- Update title and resize
@@ -294,7 +295,7 @@ function M.render_welcome(next_key)
   local ns = vim.api.nvim_create_namespace("coach")
   vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
   for _, hl in ipairs(highlights) do
-    vim.api.nvim_buf_add_highlight(buf, ns, hl[4], hl[1], hl[2], hl[3])
+    vim.api.nvim_buf_set_extmark(buf, ns, hl[1], hl[2], { end_col = hl[3], hl_group = hl[4] })
   end
 
   -- Resize window to fit

@@ -22,7 +22,6 @@ local save_autocmd = nil
 ---@type string
 local next_key = "<leader>kn"
 
----@type uv_timer_t|nil
 local completion_timer = nil
 
 --- Cancel any pending auto-advance timer
@@ -52,7 +51,8 @@ window._rerender = render_current
 -- Shows the completion state for 2 seconds, then auto-advances.
 window._on_exercise_complete = function()
   cancel_completion_timer()
-  local timer = vim.loop.new_timer()
+  local timer = vim.uv.new_timer()
+  if not timer then return end
   completion_timer = timer
   timer:start(2000, 0, vim.schedule_wrap(function()
     if completion_timer ~= timer then return end
