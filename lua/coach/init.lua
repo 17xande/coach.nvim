@@ -4,6 +4,7 @@
 local exercises = require("coach.exercises")
 local index = require("coach.index")
 local keybinds = require("coach.keybinds")
+local log = require("coach.log")
 local progress = require("coach.progress")
 local window = require("coach.window")
 local tracker = require("coach.tracker")
@@ -88,14 +89,22 @@ function M.start()
 
 	progress.load()
 	tracker.start()
-	window.open()
-	if progress.is_welcome_pending() then
-		welcome_active = true
-		window.render_welcome(next_key)
-	else
-		render_current()
+	if progress.is_window_visible() then
+		window.open()
+		if progress.is_welcome_pending() then
+			welcome_active = true
+			-- Defer so keymaps are fully initialized before first render
+			vim.schedule(function()
+				window.render_welcome(next_key)
+			end)
+		else
+			-- Defer so keymaps are fully initialized before first render
+			vim.schedule(render_current)
+		end
 	end
 	active = true
+	progress.set_coaching_active(true)
+	progress.save()
 
 	-- Auto-save on exit
 	save_autocmd = vim.api.nvim_create_autocmd("VimLeavePre", {
@@ -113,6 +122,8 @@ function M.stop()
 
 	cancel_completion_timer()
 	tracker.stop()
+	progress.set_window_visible(window.is_open())
+	progress.set_coaching_active(false)
 	window.close()
 	progress.save()
 	active = false
@@ -140,6 +151,8 @@ function M.toggle_window()
 	end
 
 	local opened = window.toggle()
+	progress.set_window_visible(opened)
+	progress.save()
 	if opened then
 		render_current()
 	end
@@ -293,9 +306,11 @@ function M.is_active()
 end
 
 --- Setup the plugin
----@param opts? { required_reps?: number, progress_file?: string, keybinds?: { toggle?: string, window?: string, next?: string, prev?: string, help?: string, skip?: string, index?: string } }
+---@param opts? { required_reps?: number, progress_file?: string, log_file?: string, keybinds?: { toggle?: string, window?: string, next?: string, prev?: string, help?: string, skip?: string, index?: string } }
 function M.setup(opts)
 	opts = opts or {}
+
+	log.setup({ log_file = opts.log_file })
 
 	progress.configure({
 		required_reps = opts.required_reps,
@@ -372,6 +387,12 @@ function M.setup(opts)
 	vim.keymap.set("n", keys.index, function()
 		M.toggle_index()
 	end, { desc = "Coach: toggle index" })
+
+	-- Auto-start if coaching was active last session
+	progress.load()
+	if progress.is_coaching_active() then
+		M.start()
+	end
 end
 
 return M

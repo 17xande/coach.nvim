@@ -15,6 +15,12 @@ local exercise_counts = {}
 ---@type boolean
 local welcome_shown = false
 
+---@type boolean
+local window_visible = true
+
+---@type boolean
+local coaching_active = false
+
 ---@type string
 local progress_file = vim.fn.stdpath("data") .. "/coach_progress.json"
 
@@ -39,6 +45,8 @@ function M.load()
 		current_exercise_index = 1
 		exercise_counts = {}
 		welcome_shown = false
+		window_visible = true
+		coaching_active = false
 		return
 	end
 
@@ -50,12 +58,16 @@ function M.load()
 		current_exercise_index = 1
 		exercise_counts = {}
 		welcome_shown = false
+		window_visible = true
+		coaching_active = false
 		return
 	end
 
 	current_exercise_index = data.current_exercise_index or 1
 	exercise_counts = data.exercises or {}
 	welcome_shown = data.welcome_shown == true
+	window_visible = data.window_visible ~= false
+	coaching_active = data.coaching_active == true
 
 	-- Clamp index to valid range
 	if current_exercise_index < 1 then
@@ -71,6 +83,8 @@ function M.save()
 		current_exercise_index = current_exercise_index,
 		exercises = exercise_counts,
 		welcome_shown = welcome_shown,
+		window_visible = window_visible,
+		coaching_active = coaching_active,
 	}
 
 	local json = vim.json.encode(data)
@@ -231,6 +245,27 @@ function M.go_to(index)
 	end
 	current_exercise_index = index
 	M.save()
+end
+
+--- Check if the floating window should be visible
+---@return boolean
+function M.is_window_visible()
+	return window_visible
+end
+
+--- Set whether the floating window should be visible
+---@param visible boolean
+function M.set_window_visible(visible)
+	window_visible = visible
+end
+
+function M.is_coaching_active()
+	return coaching_active
+end
+
+---@param active boolean
+function M.set_coaching_active(active)
+	coaching_active = active
 end
 
 --- Return the full exercise_counts table

@@ -2,6 +2,7 @@
 
 local exercises = require("coach.exercises")
 local keybinds = require("coach.keybinds")
+local log = require("coach.log")
 local progress = require("coach.progress")
 local window = require("coach.window")
 
@@ -82,20 +83,25 @@ local function on_action(action, data)
 	local action_set = current_action_set()
 	local match_action = M.resolve_match_action(action, data)
 
+	log.debug("on_action", { action = action, native = data and data.native, match = match_action })
+
 	-- Track all actions in the recent history for cooldown purposes,
 	-- but only process actions that belong to the current exercise.
 	if not action_set[match_action] then
+		log.debug("on_action: not in exercise, skip")
 		push_recent(action)
 		return
 	end
 
 	if progress.is_action_complete(match_action) then
+		log.debug("on_action: action already complete, skip")
 		push_recent(action)
 		return
 	end
 
 	-- Anti-spam: don't count if this action appears in the last N actions
 	if is_on_cooldown(action) then
+		log.debug("on_action: cooldown, skip")
 		push_recent(action)
 		vim.schedule(function()
 			if window.is_open() then
@@ -120,6 +126,8 @@ local function on_action(action, data)
 	local was_complete = progress.is_exercise_complete(shadowed)
 	progress.increment(match_action)
 	local now_complete = progress.is_exercise_complete(shadowed)
+
+	log.debug("on_action: counted", { match = match_action, counts = progress.get_counts(), complete = now_complete })
 
 	-- Update window if open
 	vim.schedule(function()
