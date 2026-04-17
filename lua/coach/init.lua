@@ -23,17 +23,6 @@ local save_autocmd = nil
 ---@type string
 local next_key = "<leader>kn"
 
-local completion_timer = nil
-
---- Cancel any pending auto-advance timer
-local function cancel_completion_timer()
-	if completion_timer then
-		completion_timer:stop()
-		completion_timer:close()
-		completion_timer = nil
-	end
-end
-
 --- Render the current exercise in the window
 local function render_current()
 	local exercise = exercises.get(progress.get_exercise_index())
@@ -47,39 +36,6 @@ end
 
 -- Hook for window message timer to re-render after message clears
 window._rerender = render_current
-
--- Hook called by tracker when the current exercise completes.
--- Shows the completion state for 2 seconds, then auto-advances.
-window._on_exercise_complete = function()
-	cancel_completion_timer()
-	local timer = vim.uv.new_timer()
-	if not timer then
-		return
-	end
-	completion_timer = timer
-	timer:start(
-		2000,
-		0,
-		vim.schedule_wrap(function()
-			if completion_timer ~= timer then
-				return
-			end
-			completion_timer = nil
-			if not active or welcome_active then
-				return
-			end
-			local exercise = exercises.get(progress.get_exercise_index())
-			local shadowed = exercise and keybinds.get_shadowed(exercise) or {}
-			if progress.is_exercise_complete(shadowed) then
-				if progress.advance() then
-					render_current()
-				else
-					vim.notify("coach.nvim: you've completed all exercises!", vim.log.levels.INFO)
-				end
-			end
-		end)
-	)
-end
 
 --- Start coaching: load progress, register tracker, open window
 function M.start()
@@ -120,7 +76,6 @@ function M.stop()
 		return
 	end
 
-	cancel_completion_timer()
 	tracker.stop()
 	progress.set_window_visible(window.is_open())
 	progress.set_coaching_active(false)
@@ -165,7 +120,6 @@ function M.next_exercise()
 		return
 	end
 
-	cancel_completion_timer()
 
 	if welcome_active then
 		welcome_active = false
@@ -198,7 +152,6 @@ function M.skip_exercise()
 		return
 	end
 
-	cancel_completion_timer()
 
 	if welcome_active then
 		welcome_active = false

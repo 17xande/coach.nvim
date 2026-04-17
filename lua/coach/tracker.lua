@@ -8,9 +8,11 @@ local window = require("coach.window")
 
 local M = {}
 
---- The callback function reference (needed for off_action)
+--- The callback function references (needed for off_*_action)
 ---@type fun(action: string, data: table)|nil
-local callback = nil
+local key_callback = nil
+---@type fun(action: string, data: table)|nil
+local cmd_callback = nil
 
 --- Recent action history for anti-spam (ring buffer of last 3 actions)
 local COOLDOWN = 3
@@ -147,16 +149,13 @@ local function on_action(action, data)
 				vim.notify("coach.nvim: Exercise complete!", vim.log.levels.INFO)
 			end
 			progress.save()
-			if window._on_exercise_complete then
-				window._on_exercise_complete()
-			end
 		end
 	end)
 end
 
---- Start tracking by registering callback with track-action.nvim
+--- Start tracking by registering callbacks with track-action.nvim
 function M.start()
-	if callback then
+	if key_callback then
 		return
 	end
 
@@ -168,29 +167,33 @@ function M.start()
 	end
 
 	recent_actions = {}
-	callback = on_action
-	track_action.on_action(callback)
+	key_callback = on_action
+	cmd_callback = on_action
+	track_action.on_key_action(key_callback)
+	track_action.on_cmd_action(cmd_callback)
 end
 
---- Stop tracking by unregistering callback
+--- Stop tracking by unregistering callbacks
 function M.stop()
-	if not callback then
+	if not key_callback then
 		return
 	end
 
 	local ok, track_action = pcall(require, "track-action")
 	if ok then
-		track_action.off_action(callback)
+		track_action.off_key_action(key_callback)
+		track_action.off_cmd_action(cmd_callback)
 	end
 
-	callback = nil
+	key_callback = nil
+	cmd_callback = nil
 	recent_actions = {}
 end
 
 --- Check if tracker is active
 ---@return boolean
 function M.is_active()
-	return callback ~= nil
+	return key_callback ~= nil
 end
 
 return M

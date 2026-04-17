@@ -55,10 +55,6 @@ local function progress_bar(count, total, width)
 	return string.rep("\u{2588}", filled), string.rep("\u{2591}", empty)
 end
 
---- Hook called when the current exercise completes (set by init.lua)
----@type function|nil
-M._on_exercise_complete = nil
-
 --- Pending message to display (set externally, cleared after render)
 ---@type string|nil
 local pending_message = nil
@@ -121,14 +117,16 @@ function M.render(exercise, counts, required_reps, next_key, shadowed, alternati
 		table.insert(lines, "")
 	end
 
-	-- Compute display column width (accounting for alternatives)
-	local display_width = 7
+	-- Compute display and description column widths dynamically
+	local display_width = 0
+	local desc_width = 0
 	for _, a in ipairs(exercise.actions) do
 		local d = a.display
 		if not shadowed[a.action] and alternatives[a.action] and #alternatives[a.action] > 0 then
 			d = d .. " / " .. table.concat(alternatives[a.action], " / ")
 		end
 		display_width = math.max(display_width, #d + 2)
+		desc_width = math.max(desc_width, #a.desc + 2)
 	end
 
 	-- Action lines
@@ -140,7 +138,7 @@ function M.render(exercise, counts, required_reps, next_key, shadowed, alternati
 			display_text = display_text .. " / " .. table.concat(alternatives[a.action], " / ")
 		end
 		local display = string.format("%-" .. display_width .. "s", display_text)
-		local desc_str = string.format("%-14s", a.desc)
+		local desc_str = string.format("%-" .. desc_width .. "s", a.desc)
 		local line_idx = #lines
 
 		if shadowed[a.action] then
@@ -230,16 +228,20 @@ function M.render(exercise, counts, required_reps, next_key, shadowed, alternati
 	if win and vim.api.nvim_win_is_valid(win) then
 		local width = 0
 		for _, line in ipairs(lines) do
-			if #line > width then
-				width = #line
+			local w = vim.fn.strdisplaywidth(line)
+			if w > width then
+				width = w
 			end
 		end
-		width = math.max(width + 2, 34)
-
 		local title = " " .. exercise.title .. " (" .. exercise.id .. ") "
+		width = math.max(width + 2, vim.fn.strdisplaywidth(title) + 2)
+
 		vim.api.nvim_win_set_config(win, {
+			relative = "editor",
 			width = width,
 			height = #lines,
+			col = vim.o.columns - width - 2,
+			row = 1,
 			title = { { title, "CoachTitle" } },
 			title_pos = "center",
 		})
@@ -308,15 +310,19 @@ function M.render_welcome(next_key)
 	if win and vim.api.nvim_win_is_valid(win) then
 		local width = 0
 		for _, line in ipairs(lines) do
-			if #line > width then
-				width = #line
+			local w = vim.fn.strdisplaywidth(line)
+			if w > width then
+				width = w
 			end
 		end
-		width = math.max(width + 2, 34)
+		width = width + 2
 
 		vim.api.nvim_win_set_config(win, {
+			relative = "editor",
 			width = width,
 			height = #lines,
+			col = vim.o.columns - width - 2,
+			row = 1,
 			title = { { " coach.nvim ", "CoachTitle" } },
 			title_pos = "center",
 		})
