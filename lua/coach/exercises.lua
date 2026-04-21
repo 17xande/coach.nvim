@@ -75,6 +75,11 @@ M.list = {
 			{ action = "<C-]>", display = "Ctrl-]", desc = "Jump to tag" },
 			{ action = "<C-t>", display = "Ctrl-T", desc = "Pop tag" },
 			{ action = "<C-o>", display = "Ctrl-O", desc = "Jump back" },
+			{ action = "ex:help", display = ":help", desc = "Open help" },
+			{ action = "ex:helpgrep", display = ":helpgrep", desc = "Search all help" },
+			{ action = "ex:cnext", display = ":cnext", desc = "Next quickfix result" },
+			{ action = "ex:copen", display = ":copen", desc = "Open quickfix window" },
+			{ action = "ex:Tutor", display = ":Tutor", desc = "Open Vim tutorial" },
 		},
 	},
 
@@ -181,10 +186,15 @@ M.list = {
 		title = "Simple Searches",
 		help_tag = "03.8",
 		actions = {
+			{ action = "/", display = "/", desc = "Search forward" },
+			{ action = "?", display = "?", desc = "Search backward" },
 			{ action = "n", display = "n", desc = "Next match" },
 			{ action = "N", display = "N", desc = "Prev match" },
 			{ action = "*", display = "*", desc = "Search word fwd" },
 			{ action = "#", display = "#", desc = "Search word bwd" },
+			{ action = "g*", display = "g*", desc = "Search partial word fwd" },
+			{ action = "g#", display = "g#", desc = "Search partial word bwd" },
+			{ action = "ex:nohlsearch", display = ":nohlsearch", desc = "Clear highlights" },
 		},
 	},
 	{
@@ -196,6 +206,9 @@ M.list = {
 			{ action = "<C-i>", display = "Ctrl-I", desc = "Newer jump" },
 			{ action = "m", display = "m{a-z}", desc = "Set mark" },
 			{ action = "`", display = "`{a-z}", desc = "Go to mark" },
+			{ action = "''", display = "''", desc = "Jump back to line" },
+			{ action = "ex:jumps", display = ":jumps", desc = "List jump list" },
+			{ action = "ex:marks", display = ":marks", desc = "List all marks" },
 		},
 	},
 
@@ -275,6 +288,7 @@ M.list = {
 			{ action = "daw", display = "daw", desc = "Delete a word" },
 			{ action = "diw", display = "diw", desc = "Delete inner word" },
 			{ action = "cis", display = "cis", desc = "Change inner sent" },
+			{ action = "das", display = "das", desc = "Delete a sentence" },
 		},
 	},
 	{
@@ -323,6 +337,14 @@ M.list = {
 		},
 	},
 	{
+		id = "05.6",
+		title = "Help Files",
+		help_tag = "05.6",
+		actions = {
+			{ action = "ex:helptags", display = ":helptags", desc = "Generate help tags" },
+		},
+	},
+	{
 		id = "05.7",
 		title = "Option Window",
 		help_tag = "05.7",
@@ -367,6 +389,7 @@ M.list = {
 		actions = {
 			{ action = "ex:edit", display = ":edit", desc = "Open file" },
 			{ action = "ex:write", display = ":write", desc = "Save file" },
+			{ action = "ex:hide", display = ":hide", desc = "Hide buffer, switch file" },
 		},
 	},
 	{
@@ -379,6 +402,8 @@ M.list = {
 			{ action = "ex:first", display = ":first", desc = "First file" },
 			{ action = "ex:last", display = ":last", desc = "Last file" },
 			{ action = "ex:args", display = ":args", desc = "Show arg list" },
+			{ action = "ex:wnext", display = ":wnext", desc = "Write, then next file" },
+			{ action = "ex:wprevious", display = ":wprevious", desc = "Write, then prev file" },
 		},
 	},
 	{
@@ -387,6 +412,8 @@ M.list = {
 		help_tag = "07.3",
 		actions = {
 			{ action = "<C-^>", display = "Ctrl-^", desc = "Alternate file" },
+			{ action = "`\"", display = "`\"", desc = "Pos when last left file" },
+			{ action = "`.", display = "`.", desc = "Pos of last change" },
 		},
 	},
 	{
@@ -409,6 +436,7 @@ M.list = {
 			{ action = "ex:split", display = ":split", desc = "Horizontal split" },
 			{ action = "ex:close", display = ":close", desc = "Close window" },
 			{ action = "ex:only", display = ":only", desc = "Keep only current" },
+			{ action = "ex:new", display = ":new", desc = "New empty split" },
 		},
 	},
 	{
@@ -432,6 +460,8 @@ M.list = {
 			{ action = "<C-w>j", display = "Ctrl-W j", desc = "Window down" },
 			{ action = "<C-w>k", display = "Ctrl-W k", desc = "Window up" },
 			{ action = "<C-w>l", display = "Ctrl-W l", desc = "Window right" },
+			{ action = "<C-w>t", display = "Ctrl-W t", desc = "Top window" },
+			{ action = "<C-w>b", display = "Ctrl-W b", desc = "Bottom window" },
 		},
 	},
 	{
@@ -441,6 +471,7 @@ M.list = {
 		actions = {
 			{ action = "ex:vsplit", display = ":vsplit", desc = "Vertical split" },
 			{ action = "ex:vnew", display = ":vnew", desc = "Vertical new buffer" },
+			{ action = "ex:vertical", display = ":vertical", desc = "Force vertical modifier" },
 		},
 	},
 	{
@@ -462,6 +493,7 @@ M.list = {
 			{ action = "ex:qall", display = ":qall", desc = "Quit all" },
 			{ action = "ex:wall", display = ":wall", desc = "Write all" },
 			{ action = "ex:wqall", display = ":wqall", desc = "Write and quit all" },
+			{ action = "ex:all", display = ":all", desc = "Open window for each arg" },
 		},
 	},
 	{
@@ -473,6 +505,9 @@ M.list = {
 			{ action = "[c", display = "[c", desc = "Prev change" },
 			{ action = "dp", display = "dp", desc = "Diff put" },
 			{ action = "do", display = "do", desc = "Diff obtain" },
+			{ action = "ex:diffsplit", display = ":diffsplit", desc = "Diff split with file" },
+			{ action = "ex:diffpatch", display = ":diffpatch", desc = "Diff apply patch" },
+			{ action = "ex:diffupdate", display = ":diffupdate", desc = "Refresh diff" },
 		},
 	},
 	{
@@ -482,6 +517,9 @@ M.list = {
 		actions = {
 			{ action = "gt", display = "gt", desc = "Next tab" },
 			{ action = "gT", display = "gT", desc = "Prev tab" },
+			{ action = "ex:tabedit", display = ":tabedit", desc = "Open in new tab" },
+			{ action = "ex:tab", display = ":tab split", desc = "Dup current in new tab" },
+			{ action = "ex:tabonly", display = ":tabonly", desc = "Close other tabs" },
 		},
 	},
 
@@ -514,12 +552,21 @@ M.list = {
 		},
 	},
 	{
+		id = "10.6",
+		title = "Read/Write Files",
+		help_tag = "10.6",
+		actions = {
+			{ action = "ex:read", display = ":read", desc = "Insert file below cursor" },
+		},
+	},
+	{
 		id = "10.7",
 		title = "Format Text",
 		help_tag = "10.7",
 		actions = {
 			{ action = "gqap", display = "gqap", desc = "Format paragraph" },
 			{ action = "gqq", display = "gqq", desc = "Format line" },
+			{ action = "gq]/", display = "gq]/", desc = "Format C comment" },
 		},
 	},
 	{
@@ -534,6 +581,26 @@ M.list = {
 			{ action = "guw", display = "guw", desc = "Lowercase word" },
 		},
 	},
+	{
+		id = "10.9",
+		title = "External Programs",
+		help_tag = "10.9",
+		actions = {
+			{ action = "!!", display = "!!", desc = "Filter line through program" },
+			{ action = "ex:!", display = ":!{cmd}", desc = "Execute shell command" },
+		},
+	},
+
+	-- Chapter 11: Recovering from a crash
+
+	{
+		id = "11.1",
+		title = "Recovery",
+		help_tag = "11.1",
+		actions = {
+			{ action = "ex:recover", display = ":recover", desc = "Recover from swap file" },
+		},
+	},
 
 	-- Chapter 12: Clever tricks
 
@@ -543,6 +610,8 @@ M.list = {
 		help_tag = "12.6",
 		actions = {
 			{ action = "K", display = "K", desc = "Lookup man page" },
+			{ action = "g<C-g>", display = "g Ctrl-G", desc = "Count words/lines/bytes" },
+			{ action = "ex:Man", display = ":Man", desc = "Open man page in split" },
 		},
 	},
 	{
@@ -554,6 +623,19 @@ M.list = {
 			{ action = "ex:cnext", display = ":cnext", desc = "Next quickfix" },
 			{ action = "ex:cprev", display = ":cprev", desc = "Prev quickfix" },
 			{ action = "ex:clist", display = ":clist", desc = "List quickfix" },
+		},
+	},
+
+	-- Chapter 20: Typing command-line commands quickly
+
+	{
+		id = "20.4",
+		title = "Command History",
+		help_tag = "20.4",
+		actions = {
+			{ action = "q:", display = "q:", desc = "Open cmdline history window" },
+			{ action = "q/", display = "q/", desc = "Open search history window" },
+			{ action = "ex:history", display = ":history", desc = "Show command history" },
 		},
 	},
 
@@ -574,6 +656,7 @@ M.list = {
 		help_tag = "21.2",
 		actions = {
 			{ action = "ex:terminal", display = ":terminal", desc = "Open terminal" },
+			{ action = "ex:!", display = ":!{cmd}", desc = "Execute shell command" },
 		},
 	},
 	{
@@ -582,6 +665,10 @@ M.list = {
 		help_tag = "21.3",
 		actions = {
 			{ action = "ex:oldfiles", display = ":oldfiles", desc = "List recent files" },
+			{ action = "'0", display = "'0", desc = "Pos on last Vim exit" },
+			{ action = "ex:browse", display = ":browse oldfiles", desc = "Browse recent files" },
+			{ action = "ex:wshada", display = ":wshada", desc = "Write ShaDa file" },
+			{ action = "ex:rshada", display = ":rshada", desc = "Read ShaDa file" },
 		},
 	},
 	{
@@ -593,9 +680,26 @@ M.list = {
 			{ action = "ex:source", display = ":source", desc = "Load script/session" },
 		},
 	},
+	{
+		id = "21.5",
+		title = "Views",
+		help_tag = "21.5",
+		actions = {
+			{ action = "ex:mkview", display = ":mkview", desc = "Save window view" },
+			{ action = "ex:loadview", display = ":loadview", desc = "Restore window view" },
+		},
+	},
 
 	-- Chapter 22: Finding the file to edit
 
+	{
+		id = "22.1",
+		title = "File Browser",
+		help_tag = "22.1",
+		actions = {
+			{ action = "ex:Explore", display = ":Explore", desc = "Browse directory" },
+		},
+	},
 	{
 		id = "22.2",
 		title = "Current Directory",
@@ -604,6 +708,7 @@ M.list = {
 			{ action = "ex:cd", display = ":cd", desc = "Change directory" },
 			{ action = "ex:pwd", display = ":pwd", desc = "Show directory" },
 			{ action = "ex:lcd", display = ":lcd", desc = "Window-local cd" },
+			{ action = "ex:tcd", display = ":tcd", desc = "Tab-local cd" },
 		},
 	},
 	{
@@ -614,6 +719,7 @@ M.list = {
 			{ action = "gf", display = "gf", desc = "Go to file" },
 			{ action = "<C-w>f", display = "Ctrl-W f", desc = "Open in split" },
 			{ action = "ex:find", display = ":find", desc = "Find in path" },
+			{ action = "ex:sfind", display = ":sfind", desc = "Find in path, split" },
 		},
 	},
 	{
@@ -622,9 +728,14 @@ M.list = {
 		help_tag = "22.4",
 		actions = {
 			{ action = "ex:buffers", display = ":buffers", desc = "List buffers" },
+			{ action = "ex:buffer", display = ":buffer", desc = "Switch to buffer" },
+			{ action = "ex:sbuffer", display = ":sbuffer", desc = "Open buffer in split" },
 			{ action = "ex:bnext", display = ":bnext", desc = "Next buffer" },
 			{ action = "ex:bprevious", display = ":bprevious", desc = "Prev buffer" },
+			{ action = "ex:bfirst", display = ":bfirst", desc = "First buffer" },
+			{ action = "ex:blast", display = ":blast", desc = "Last buffer" },
 			{ action = "ex:bdelete", display = ":bdelete", desc = "Delete buffer" },
+			{ action = "ex:bwipe", display = ":bwipe", desc = "Remove buffer completely" },
 		},
 	},
 
@@ -640,8 +751,39 @@ M.list = {
 		},
 	},
 
+	-- Chapter 24: Inserting quickly
+
+	{
+		id = "24.7",
+		title = "Abbreviations",
+		help_tag = "24.7",
+		actions = {
+			{ action = "ex:abbreviate", display = ":abbreviate", desc = "List abbreviations" },
+			{ action = "ex:unabbreviate", display = ":unabbreviate", desc = "Remove abbreviation" },
+			{ action = "ex:abclear", display = ":abclear", desc = "Clear all abbreviations" },
+		},
+	},
+	{
+		id = "24.9",
+		title = "Digraphs",
+		help_tag = "24.9",
+		actions = {
+			{ action = "ex:digraphs", display = ":digraphs", desc = "Show digraph table" },
+		},
+	},
+
 	-- Chapter 25: Editing formatted text
 
+	{
+		id = "25.2",
+		title = "Text Alignment",
+		help_tag = "25.2",
+		actions = {
+			{ action = "ex:center", display = ":center", desc = "Center lines" },
+			{ action = "ex:right", display = ":right", desc = "Right-justify lines" },
+			{ action = "ex:left", display = ":left", desc = "Left-align lines" },
+		},
+	},
 	{
 		id = "25.3",
 		title = "Indent/Unindent",
@@ -649,6 +791,7 @@ M.list = {
 		actions = {
 			{ action = ">>", display = ">>", desc = "Indent line" },
 			{ action = "<<", display = "<<", desc = "Unindent line" },
+			{ action = "ex:retab", display = ":retab", desc = "Convert indentation" },
 		},
 	},
 	{
@@ -724,6 +867,7 @@ M.list = {
 		title = "Folding",
 		help_tag = "28.2",
 		actions = {
+			{ action = "zf", display = "zf{motion}", desc = "Create fold" },
 			{ action = "zo", display = "zo", desc = "Open fold" },
 			{ action = "zc", display = "zc", desc = "Close fold" },
 			{ action = "zO", display = "zO", desc = "Open recursive" },
@@ -733,11 +877,41 @@ M.list = {
 			{ action = "zR", display = "zR", desc = "Open all" },
 			{ action = "zM", display = "zM", desc = "Close all" },
 			{ action = "zi", display = "zi", desc = "Toggle folding" },
+			{ action = "zn", display = "zn", desc = "Disable folding" },
+			{ action = "zN", display = "zN", desc = "Re-enable folding" },
+			{ action = "zd", display = "zd", desc = "Delete fold" },
+			{ action = "zD", display = "zD", desc = "Delete folds recursive" },
 		},
 	},
 
 	-- Chapter 29: Moving through programs
 
+	{
+		id = "29.1",
+		title = "Tag Navigation",
+		help_tag = "29.1",
+		actions = {
+			{ action = "<C-w>]", display = "Ctrl-W ]", desc = "Split and jump to tag" },
+			{ action = "ex:tag", display = ":tag", desc = "Jump to tag" },
+			{ action = "ex:tags", display = ":tags", desc = "Show tag stack" },
+			{ action = "ex:stag", display = ":stag", desc = "Split and jump to tag" },
+			{ action = "ex:tnext", display = ":tnext", desc = "Next tag match" },
+			{ action = "ex:tprevious", display = ":tprevious", desc = "Prev tag match" },
+			{ action = "ex:tselect", display = ":tselect", desc = "Select from tag matches" },
+		},
+	},
+	{
+		id = "29.2",
+		title = "Preview Window",
+		help_tag = "29.2",
+		actions = {
+			{ action = "<C-w>}", display = "Ctrl-W }", desc = "Preview tag" },
+			{ action = "ex:ptag", display = ":ptag", desc = "Open preview for tag" },
+			{ action = "ex:pclose", display = ":pclose", desc = "Close preview window" },
+			{ action = "ex:pedit", display = ":pedit", desc = "Edit in preview window" },
+			{ action = "ex:psearch", display = ":psearch", desc = "Search in preview" },
+		},
+	},
 	{
 		id = "29.3",
 		title = "Code Block Movement",
@@ -745,10 +919,30 @@ M.list = {
 		actions = {
 			{ action = "[[", display = "[[", desc = "Prev outer {" },
 			{ action = "]]", display = "]]", desc = "Next function" },
+			{ action = "][", display = "][", desc = "End of outer block" },
+			{ action = "[]", display = "[]", desc = "Backward to function end" },
 			{ action = "[{", display = "[{", desc = "Start of block" },
 			{ action = "]}", display = "]}", desc = "End of block" },
 			{ action = "[(", display = "[(", desc = "Unclosed ( left" },
 			{ action = "])", display = "])", desc = "Unclosed ) right" },
+			{ action = "[#", display = "[#", desc = "Unclosed #if" },
+			{ action = "]#", display = "]#", desc = "Next #else/#endif" },
+			{ action = "[/", display = "[/", desc = "Start of C comment" },
+			{ action = "]/", display = "]/", desc = "End of C comment" },
+			{ action = "[m", display = "[m", desc = "Prev method start" },
+			{ action = "]m", display = "]m", desc = "Next method start" },
+		},
+	},
+	{
+		id = "29.4",
+		title = "Find Identifiers",
+		help_tag = "29.4",
+		actions = {
+			{ action = "[I", display = "[I", desc = "List all matches for word" },
+			{ action = "[i", display = "[i", desc = "Show first match for word" },
+			{ action = "[D", display = "[D", desc = "List #define matches" },
+			{ action = "[d", display = "[d", desc = "Show first #define match" },
+			{ action = "ex:checkpath", display = ":checkpath", desc = "Check include paths" },
 		},
 	},
 	{
@@ -771,7 +965,13 @@ M.list = {
 			{ action = "ex:make", display = ":make", desc = "Run make" },
 			{ action = "ex:cnext", display = ":cnext", desc = "Next error" },
 			{ action = "ex:cprevious", display = ":cprevious", desc = "Prev error" },
+			{ action = "ex:cc", display = ":cc", desc = "Show current error" },
 			{ action = "ex:clist", display = ":clist", desc = "List errors" },
+			{ action = "ex:cfirst", display = ":cfirst", desc = "First error" },
+			{ action = "ex:clast", display = ":clast", desc = "Last error" },
+			{ action = "ex:colder", display = ":colder", desc = "Previous error list" },
+			{ action = "ex:cnewer", display = ":cnewer", desc = "Next error list" },
+			{ action = "ex:compiler", display = ":compiler", desc = "Load compiler settings" },
 		},
 	},
 	{
@@ -781,6 +981,20 @@ M.list = {
 		actions = {
 			{ action = "==", display = "==", desc = "Re-indent line" },
 			{ action = "=G", display = "=G", desc = "Re-indent to EOF" },
+			{ action = "=a{", display = "=a{", desc = "Re-indent {} block" },
+			{ action = ">i{", display = ">i{", desc = "Indent inside {} block" },
+		},
+	},
+
+	-- Chapter 31: Exploiting the GUI
+
+	{
+		id = "31.1",
+		title = "Browse and Confirm",
+		help_tag = "31.1",
+		actions = {
+			{ action = "ex:browse", display = ":browse edit", desc = "Browse for file" },
+			{ action = "ex:confirm", display = ":confirm edit", desc = "Edit with confirmation" },
 		},
 	},
 
@@ -793,6 +1007,7 @@ M.list = {
 		actions = {
 			{ action = "g-", display = "g-", desc = "Older state" },
 			{ action = "g+", display = "g+", desc = "Newer state" },
+			{ action = "ex:undo", display = ":undo {N}", desc = "Jump to undo state" },
 		},
 	},
 	{

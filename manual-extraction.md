@@ -123,52 +123,6 @@ Not a keybinding itself, but a modifier concept: any command can be preceded by 
 | `:Tutor` | launch the interactive Vim tutorial | ✓ |
 
 ---
-
-## Summary of all keybindings/actions taught in Chapter 02
-
-### Mode switching
-- `i` - enter Insert mode (before cursor)
-- `a` - enter Insert mode (after cursor)
-- `o` - open line below, enter Insert mode
-- `O` - open line above, enter Insert mode
-- `<Esc>` - return to Normal mode
-
-### Cursor movement
-- `h` - left
-- `j` - down
-- `k` - up
-- `l` - right
-
-### Editing
-- `x` - delete character
-- `dd` - delete line
-- `J` - join lines
-
-### Undo / Redo
-- `u` - undo
-- `CTRL-R` - redo
-- `U` - undo all changes on line
-
-### Saving and quitting
-- `ZZ` - save and quit
-- `:q!` - quit without saving
-- `:q` - quit
-- `:e!` - reload file
-
-### Help navigation
-- `:help` / `<F1>` - open help
-- `:help {subject}` - topic help
-- `:helpgrep {topic}` - search all help pages
-- `:cnext` / `:copen` - quickfix navigation
-- `CTRL-]` - follow link
-- `CTRL-T` - go back
-- `CTRL-O` - jump to older position
-
-### Concepts (not keybindings)
-- Modal editing (Normal vs Insert mode)
-- Count prefix (`{count}{command}`) to repeat any command
-
----
 ---
 
 # Neovim User Manual - Chapter 03 Extraction
@@ -340,65 +294,6 @@ No new keybindings. Teaches regex basics for search patterns:
 Notes: `CTRL-I` is the same as `<Tab>`.
 
 ---
-
-## Summary of all keybindings/actions taught in Chapter 03
-
-### Word movement
-- `w` - word forward
-- `b` - word backward
-- `e` - word end forward
-- `ge` - word end backward
-- `W`, `B`, `E`, `gE` - WORD variants
-
-### Line position
-- `0` - line start
-- `^` - first non-blank
-- `$` - line end
-
-### Character search
-- `f{char}` - find forward
-- `F{char}` - find backward
-- `t{char}` - till forward
-- `T{char}` - till backward
-- `;` - repeat find forward
-- `,` - repeat find backward
-
-### Matching
-- `%` - matching bracket
-
-### Line/screen movement
-- `gg` - first line
-- `G` - last line / go to line n
-- `{n}%` - go to n% through file
-- `H` - screen top
-- `M` - screen middle
-- `L` - screen bottom
-
-### Scrolling
-- `CTRL-U` / `CTRL-D` - half screen up/down
-- `CTRL-B` / `CTRL-F` - full screen up/down
-- `CTRL-E` / `CTRL-Y` - one line up/down
-- `zz` / `zt` / `zb` - center/top/bottom cursor
-
-### Searching
-- `/` - search forward
-- `?` - search backward
-- `n` / `N` - next/prev match
-- `*` / `#` - search word under cursor forward/backward
-- `g*` / `g#` - search partial word under cursor forward/backward
-
-### Marks and jumps
-- `` ` `` / `''` - jump back to before last jump (exact / line)
-- `CTRL-O` / `CTRL-I` - older/newer jump
-- `m{a-z}` - set mark
-- `` `{a-z} `` / `'{a-z}` - go to mark
-
-### Commands
-- `:set hlsearch` / `:nohlsearch` - search highlighting
-- `:set ignorecase` - case-insensitive search
-- `:jumps` / `:marks` - list jumps/marks
-
----
 ---
 
 # Neovim User Manual - Chapter 04 Extraction
@@ -551,53 +446,6 @@ Additional commands mentioned:
 | `A` | Append at end of line                        | ✓ |
 
 ---
-
-## Summary of all keybindings/actions taught in Chapter 04
-
-### Operator-motion combos
-- `dw` - delete word
-- `d$` - delete to end of line
-
-### Change operator and shortcuts
-- `cc` - change line
-- `C` - change to end of line
-- `D` - delete to end of line
-- `s` - substitute character
-- `S` - substitute line
-- `X` - delete char before cursor
-- `r` - replace character
-
-### Repeat
-- `.` - repeat last change
-
-### Visual mode
-- `v` - visual character
-- `V` - visual line
-- `CTRL-V` - visual block
-
-### Put (paste)
-- `p` - put after
-- `P` - put before
-
-### Yank (copy)
-- `yy` - yank line
-- `Y` - yank to end of line
-
-### Clipboard
-- `"*yy` / `"*p` - system selection
-- `"+y` / `"+p` - system clipboard
-
-### Text objects (with operators)
-- `daw` / `diw` - delete a/inner word
-- `cis` / `das` - change inner / delete a sentence
-
-### Other
-- `~` - toggle case
-- `I` - insert at line start
-- `A` - append at line end
-- `R` - replace mode
-
----
 ---
 
 # Neovim User Manual - Chapter 05 Extraction
@@ -688,19 +536,6 @@ Settings taught:
 | `:set cmdheight=3` | set command-line area height | ✗ |
 
 ---
-
-## Summary for Chapter 05
-
-Primarily configuration. No trackable normal-mode keybindings for exercises.
-
-### Commands
-- `:edit $MYVIMRC` - open config
-- `:options` - interactive option window
-- `:packadd` - load optional package
-- `:helptags` - generate help tags
-- `:map` / `:map {lhs} {rhs}` - mappings
-
----
 ---
 
 # Neovim User Manual - Chapter 06 Extraction
@@ -743,18 +578,6 @@ Source: `usr_06.txt` - **Using syntax highlighting**
 | `:syntax on` / `:syntax off` | enable/disable syntax highlighting | ✓ |
 | `:syntax clear` | temporarily clear syntax highlighting | ✓ |
 | `:syntax manual` | manual syntax mode (per-buffer `:set syntax=ON`) | ✓ |
-
----
-
-## Summary for Chapter 06
-
-### Keybindings
-- `CTRL-L` - redraw screen
-
-### Commands
-- `:colorscheme {name}` - apply color scheme
-- `:syntax on` / `:syntax off` - toggle syntax highlighting
-- `:highlight` - change highlight colors
 
 ---
 ---
@@ -855,25 +678,6 @@ Introduces **named registers** (`"a` through `"z`):
 |---------|--------|----------|
 | `:saveas {file}` | write buffer under a new name and continue editing it | ✓ |
 | `:file {name}` | rename the current buffer (does not write) | ✓ |
-
----
-
-## Summary for Chapter 07
-
-### Keybindings
-- `CTRL-^` - alternate file
-- `` `" `` / `` `. `` - predefined marks
-- `m{A-Z}` / `` `{A-Z} `` - global marks
-- Named register syntax: `"{reg}y`, `"{reg}p`
-
-### Commands
-- `:edit` / `:write` / `:hide edit` - file operations
-- `:next` / `:previous` / `:first` / `:last` / `:wnext` - argument list
-- `:args` - show/redefine argument list
-- `:saveas` / `:file` - rename/save-as
-- `:write >> {file}` - append to file
-- `:marks` - list marks
-- `:set autowrite` - auto-save on switch
 
 ---
 ---
@@ -1025,26 +829,6 @@ Source: `usr_08.txt` - **Splitting windows**
 | `:tabonly` | close all tab pages except current | ✓ |
 
 ---
-
-## Summary for Chapter 08
-
-### Keybindings
-- `CTRL-W w/h/j/k/l/t/b` - window navigation
-- `CTRL-W K/J/H/L` - window moving
-- `CTRL-W +/-/_/=` - window sizing
-- `CTRL-W CTRL-^` - split alternate file
-- `]c` / `[c` / `dp` / `do` - diff navigation
-- `zo` / `zc` - fold open/close
-- `gt` / `gT` - tab navigation
-
-### Commands
-- `:split` / `:vsplit` / `:new` / `:vnew` - split windows
-- `:close` / `:only` - close windows
-- `:qall` / `:wall` / `:wqall` - all-window operations
-- `:tabedit` / `:tabonly` - tab operations
-- `:vertical diffsplit` / `:diffupdate` - diff mode
-
----
 ---
 
 # Neovim User Manual - Chapter 09 Extraction
@@ -1061,12 +845,6 @@ Source: `usr_09.txt` - **Using the GUI**
 Register usage (extending 04.7):
 - `"*` register — system selection (X11 primary)
 - `"+` register — system clipboard (X11 clipboard)
-
----
-
-## Summary for Chapter 09
-
-Primarily GUI-specific. No new trackable normal-mode keybindings for exercises beyond clipboard registers already covered in 04.7.
 
 ---
 ---
@@ -1213,25 +991,6 @@ Range syntax:
 | `:{range}!{command}` | filter range through external command | ✓ |
 
 ---
-
-## Summary for Chapter 10
-
-### Keybindings
-- `q{a-z}` / `q` / `@{a-z}` / `@@` - macro record/playback
-- `gq{motion}` - format text
-- `gU{motion}` / `gu{motion}` / `g~{motion}` - change case
-- `!{motion}{prog}` / `!!{prog}` - external filter
-- Visual block: `I`, `A`, `c`, `C`, `r`, `~`, `U`, `u`, `>`, `<`, `J`, `gJ`
-
-### Commands
-- `:[range]s/{from}/{to}/[flags]` - substitute
-- `:[range]g/{pattern}/{command}` - global command
-- `:read {file}` / `:read !{cmd}` - read file/command output
-- `:{range}write {file}` - write range to file
-- `:!{command}` / `:{range}!{command}` - external commands
-- `:set textwidth` - line wrap width
-
----
 ---
 
 # Neovim User Manual - Chapter 11 Extraction
@@ -1249,16 +1008,6 @@ Source: `usr_11.txt` - **Recovering from a crash**
 | `:write {file}` | save recovered buffer under a new name | ✓ |
 | `:edit #` | re-open the previous (original) file | ✓ |
 | `:diffsp {file}` | open a diff split against the original file | ✓ |
-
----
-
-## Summary for Chapter 11
-
-Primarily conceptual (swap file mechanics). No trackable keybindings for exercises.
-
-### Commands
-- `:recover` - recover from swap file
-- `:diffsp` - diff against original
 
 ---
 ---
@@ -1352,21 +1101,6 @@ Notes: In Visual mode, counts only the selection.
 | `:clist` | list all quickfix matches | ✓ |
 
 ---
-
-## Summary for Chapter 12
-
-### Keybindings
-- `g CTRL-G` - word/line/byte count
-- `K` - man page lookup
-
-### Commands
-- `:%s/\<old\>/new/g` - whole-word replace
-- `:%s/\([^,]*\), \(.*\)/\2 \1/` - backreference swap
-- `:g/^/m 0` - reverse lines
-- `:%s/\s\+$//` - trim trailing whitespace
-- `:grep` / `:cnext` / `:cprev` / `:clist` - cross-file search
-
----
 ---
 
 # Neovim User Manual - Chapter 20 Extraction
@@ -1434,18 +1168,6 @@ Command-line mode keybindings:
 |------|-------------------------------------------|----------|
 | `q:` | Open the command-line window (`:` history) | ✓ |
 | `q/` | Open the search history window             | ✓ |
-
----
-
-## Summary for Chapter 20
-
-### Keybindings
-- `q:` / `q/` - command-line/search history window
-- Command-line mode: `Tab`, `Ctrl-D`, `Ctrl-L`, `Ctrl-W`, `Ctrl-U`, `Ctrl-P/N`
-
-### Commands
-- `:history` / `:history /` - show history
-- `:set wildmenu` - completion menu
 
 ---
 ---
@@ -1519,20 +1241,6 @@ Source: `usr_21.txt` - **Go away and come back**
 | `:mkview {N}` | save numbered view (1-9) | ✓ |
 | `:loadview` | restore saved view | ✓ |
 | `:loadview {N}` | restore numbered view | ✓ |
-
----
-
-## Summary for Chapter 21
-
-### Keybindings
-- `CTRL-Z` - suspend Vim
-- `'0` through `'9` - ShaDa exit marks
-
-### Commands
-- `:terminal` - terminal buffer
-- `:mksession` / `:source` - sessions
-- `:mkview` / `:loadview` - views
-- `:oldfiles` / `:browse oldfiles` - recent files
 
 ---
 ---
@@ -1613,21 +1321,6 @@ Netrw normal-mode keys:
 | `:bwipe` | completely remove buffer from memory | ✓ |
 
 ---
-
-## Summary for Chapter 22
-
-### Keybindings
-- `gf` - go to file under cursor
-- `CTRL-W f` - go to file in split
-- Netrw keys: `<CR>`, `o`, `v`, `p`, `t`, `-`, `i`, `s`, `r`, `R`, `D`
-
-### Commands
-- `:Explore` / `:edit .` - file browser
-- `:cd` / `:lcd` / `:tcd` / `:pwd` - directory management
-- `:find` / `:sfind` - find files in path
-- `:buffers` / `:bnext` / `:bprevious` / `:bdelete` - buffer management
-
----
 ---
 
 # Neovim User Manual - Chapter 23 Extraction
@@ -1661,19 +1354,6 @@ Source: `usr_23.txt` - **Editing other files**
 | `:%!xxd` | convert buffer to hex dump | ✓ |
 | `:%!xxd -r` | convert hex dump back to binary | ✓ |
 | `:set display=uhex` | display unprintable chars in hex | ✗ |
-
----
-
-## Summary for Chapter 23
-
-### Keybindings
-- `ga` - show character value
-- `{N}go` - go to byte N
-
-### Commands
-- `:set fileformat` / `:set fileformats` - file format handling
-- `:edit ++ff=` / `:edit ++enc=` - force format/encoding
-- `:%!xxd` / `:%!xxd -r` - hex editing
 
 ---
 ---
@@ -1805,25 +1485,6 @@ Insert-mode keybindings:
 | `CTRL-O {cmd}`  | Execute one Normal mode command without leaving Insert mode | ✓ |
 
 ---
-
-## Summary for Chapter 24
-
-### Insert-mode keybindings
-- `CTRL-P` / `CTRL-N` - word completion
-- `CTRL-X CTRL-F/L/D/I/K/T/]/V/O` - specific completions
-- `CTRL-A` / `CTRL-@` - repeat last insert
-- `CTRL-Y` / `CTRL-E` - copy from above/below line
-- `CTRL-R {reg}` - insert register contents
-- `CTRL-V {char}` - literal insert
-- `CTRL-K {chars}` - digraph insert
-- `CTRL-O {cmd}` - execute one Normal command
-- `CTRL-W` / `CTRL-U` - delete word/line
-
-### Commands
-- `:iabbrev` / `:abbreviate` / `:unabbreviate` / `:abclear` - abbreviations
-- `:digraphs` / `:digraph` - digraphs
-
----
 ---
 
 # Neovim User Manual - Chapter 25 Extraction
@@ -1924,24 +1585,6 @@ Visible-line movement:
 | `:set virtualedit=all` | cursor can move beyond end of line | ✗ |
 
 ---
-
-## Summary for Chapter 25
-
-### Keybindings
-- `gq{motion}` - format text
-- `>>` / `<<` / `>` / `<` - indent/unindent
-- `zh` / `zl` / `zH` / `zL` / `zs` / `ze` - horizontal scrolling
-- `g0` / `g^` / `gm` / `g$` / `gj` / `gk` - screen line movement
-- `gr{char}` / `gR` - virtual replace
-
-### Commands
-- `:center` / `:right` / `:left` - text alignment
-- `:set textwidth` / `:set linebreak` - line wrapping
-- `:set autoindent` / `:set shiftwidth` / `:set expandtab` - indentation
-- `:set virtualedit=all` - virtual editing
-- `:retab` - convert indentation
-
----
 ---
 
 # Neovim User Manual - Chapter 26 Extraction
@@ -1981,17 +1624,6 @@ Notes: Count prefix works: `5 CTRL-A` adds 5. Combine with `n` and `.` for multi
 | `:bufdo {cmd}` | execute command on all buffers | ✓ |
 
 Notes: Commonly used with `| update` to save only changed files.
-
----
-
-## Summary for Chapter 26
-
-### Keybindings
-- `gv` - reselect visual
-- `CTRL-A` / `CTRL-X` - increment/decrement number
-
-### Commands
-- `:argdo` / `:windo` / `:bufdo` - execute across files/windows/buffers
 
 ---
 ---
@@ -2045,21 +1677,6 @@ Key pattern atoms:
 - `\_.` — any character or line break
 
 ---
-
-## Summary for Chapter 27
-
-### Commands
-- `:set ignorecase smartcase` - smart case search
-
-### Pattern reference
-- `\c` / `\C` - per-pattern case control
-- `/pattern/e` - search with offset
-- `\<word\>` - word boundaries
-- `\+`, `\=`, `\{n,m}`, `\{-}` - quantifiers
-- `\|`, `\(\)` - alternation, grouping
-- `\d`, `\s`, `\a`, `\w`, `\_s`, `\_.` - character classes
-
----
 ---
 
 # Neovim User Manual - Chapter 28 Extraction
@@ -2107,22 +1724,6 @@ Source: `usr_28.txt` - **Folding**
 <!-- help: 28.6 | :h 28.6 -->
 
 Marker syntax in text: `{{{` / `}}}` (with optional level numbers `{{{1}`)
-
----
-
-## Summary for Chapter 28
-
-### Keybindings
-- `zf{motion}` - create fold
-- `zo` / `zc` / `zO` / `zC` - open/close folds
-- `zr` / `zm` / `zR` / `zM` - fold level control
-- `zn` / `zN` / `zi` - toggle folding
-- `zd` / `zD` - delete folds
-
-### Commands
-- `:set foldmethod=` - fold method
-- `:set foldcolumn=` / `:set foldlevel=` - fold display
-- `:mkview` / `:loadview` - save/restore folds
 
 ---
 ---
@@ -2216,25 +1817,6 @@ Source: `usr_29.txt` - **Moving through programs**
 |------|-----------------------------------------|----------|
 | `gD` | Jump to global declaration of identifier| ✓ |
 | `gd` | Jump to local declaration of identifier | ✓ |
-
----
-
-## Summary for Chapter 29
-
-### Keybindings
-- `CTRL-]` / `CTRL-T` / `CTRL-W ]` / `CTRL-W }` - tag navigation
-- `[[` / `]]` / `][` / `[]` - function/block movement
-- `[{` / `]}` / `[(` / `])` - block boundary movement
-- `[/` / `]/` - comment movement
-- `[m` / `]m` - method movement (C++/Java)
-- `[I` / `[D` / `[d` / `[i` / `[<Tab>` - identifier search
-- `gD` / `gd` - go to declaration
-
-### Commands
-- `:tag` / `:stag` / `:tselect` - tag jumping
-- `:tnext` / `:tprevious` / `:tfirst` / `:tlast` - tag list navigation
-- `:ptag` / `:pclose` / `:pedit` / `:psearch` - preview window
-- `:checkpath` - check include files
 
 ---
 ---
@@ -2332,25 +1914,6 @@ Insert-mode keybindings:
 | Command | Action | Practice |
 |---------|--------|----------|
 | `:set comments=...` | define comment markers | ✗ |
-
----
-
-## Summary for Chapter 30
-
-### Keybindings
-- `==` / `=a{` / `gg=G` - re-indent
-- `>>` / `<<` / `>i{` - shift indent
-- Insert: `CTRL-T` / `CTRL-D` - adjust indent in Insert mode
-- `gq]/` - format comment
-
-### Commands
-- `:make` - compile
-- `:cnext` / `:cprevious` / `:cc` / `:clist` / `:cfirst` / `:clast` - quickfix
-- `:colder` / `:cnewer` - error list history
-- `:set cindent` / `:set cinoptions` - C indentation
-- `:filetype indent on` - filetype indentation
-- `:%retab` - convert tabs/spaces
-
 ---
 ---
 
@@ -2370,17 +1933,6 @@ Source: `usr_31.txt` - **Exploiting the GUI**
 | `:browse edit` | open file browser to choose file | ✓ |
 | `:browse split` | open file browser, then split with selected file | ✓ |
 | `:confirm edit {file}` | edit file but prompt if unsaved changes | ✓ |
-
----
-
-## Summary for Chapter 31
-
-Primarily GUI-specific. Minor commands.
-
-### Commands
-- `:browse edit` / `:browse split` - file browser
-- `:confirm edit` - confirm before discarding changes
-
 ---
 ---
 
@@ -2415,14 +1967,3 @@ Source: `usr_32.txt` - **The undo tree**
 | `:later 1f` | go forward to state at next file write | ✓ |
 | `:undolist` | show all leaves of the undo tree | ✓ |
 
----
-
-## Summary for Chapter 32
-
-### Keybindings
-- `g-` / `g+` - navigate undo tree across branches
-
-### Commands
-- `:undo {N}` - jump to specific undo state
-- `:earlier` / `:later` - time-based undo navigation
-- `:undolist` - show undo tree leaves
