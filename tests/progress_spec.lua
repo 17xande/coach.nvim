@@ -7,6 +7,16 @@ local tmp_file = vim.fn.tempname() .. "_coach_test.json"
 --- Force a fresh progress module by clearing the require cache
 local function fresh_progress()
 	package.loaded["coach.progress"] = nil
+	package.loaded["coach.exercises"] = nil
+	package.loaded["coach.sets"] = nil
+	package.loaded["coach.sources"] = nil
+	package.loaded["coach.builtin"] = nil
+	package.loaded["coach.exercises_data"] = nil
+
+	local sets = require("coach.sets")
+	sets._set_state_file(vim.fn.tempname() .. "_coach_state.json")
+	sets.configure({ active = "neovim-manual/01-first-steps" })
+
 	local progress = require("coach.progress")
 	progress.configure({ progress_file = tmp_file, required_reps = 3 })
 	progress.load()
@@ -448,54 +458,42 @@ describe("progress", function()
 	describe("per-exercise required_reps", function()
 		it("exercise required_reps overrides global for increment cap", function()
 			cleanup()
-			-- Temporarily patch the first exercise to require only 2 reps
+			local p = fresh_progress() -- global required_reps = 3
 			local exercises = require("coach.exercises")
-			local orig = exercises.list[1].required_reps
 			exercises.list[1].required_reps = 2
 
-			local p = fresh_progress() -- global required_reps = 3
 			p.increment("i")
 			p.increment("i")
-			-- Third increment should not go past 2
 			p.increment("i")
 			eq(2, p.get_count("i"))
-
-			exercises.list[1].required_reps = orig
 		end)
 
 		it("exercise required_reps overrides global for is_action_complete", function()
 			cleanup()
+			local p = fresh_progress()
 			local exercises = require("coach.exercises")
-			local orig = exercises.list[1].required_reps
 			exercises.list[1].required_reps = 1
 
-			local p = fresh_progress()
 			p.increment("i")
 			is_true(p.is_action_complete("i"))
-
-			exercises.list[1].required_reps = orig
 		end)
 
 		it("exercise required_reps overrides global for is_exercise_complete", function()
 			cleanup()
+			local p = fresh_progress()
 			local exercises = require("coach.exercises")
-			local orig = exercises.list[1].required_reps
 			exercises.list[1].required_reps = 1
 
-			local p = fresh_progress()
 			p.increment("i")
 			is_true(p.is_exercise_complete())
-
-			exercises.list[1].required_reps = orig
 		end)
 
 		it("falls back to global required_reps when not set on exercise", function()
 			cleanup()
+			local p = fresh_progress() -- global required_reps = 3
 			local exercises = require("coach.exercises")
-			-- Ensure no override is present
 			exercises.list[1].required_reps = nil
 
-			local p = fresh_progress() -- global required_reps = 3
 			p.increment("i")
 			p.increment("i")
 			is_false(p.is_action_complete("i"))

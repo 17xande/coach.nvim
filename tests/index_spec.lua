@@ -1,6 +1,10 @@
 local h = require("harness")
 local describe, it, is_true, is_false = h.describe, h.it, h.is_true, h.is_false
 
+local sets = require("coach.sets")
+sets._set_state_file(vim.fn.tempname() .. "_coach_idx_state.json")
+sets.configure({ active = "neovim-manual/01-first-steps" })
+
 local progress = require("coach.progress")
 progress.configure({ progress_file = vim.fn.tempname() .. "_coach_idx_test.json", required_reps = 3 })
 progress.load()

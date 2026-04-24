@@ -1,20 +1,24 @@
 local h = require("harness")
 local describe, it, eq, is_true = h.describe, h.it, h.eq, h.is_true
 
+local builtin = require("coach.builtin")
+local sets = require("coach.sets")
+sets._set_state_file(vim.fn.tempname() .. "_coach_state.json")
+sets.configure({ active = "neovim-manual/01-first-steps" })
+
 local exercises = require("coach.exercises")
 
-describe("exercises", function()
+describe("exercises (runtime)", function()
 	describe("count", function()
-		it("returns a positive number", function()
-			local c = exercises.count()
-			is_true(c > 0, "should have at least one exercise")
+		it("reflects the active volume's chapter count", function()
+			is_true(exercises.count() > 0, "should have at least one chapter")
 		end)
 	end)
 
 	describe("get", function()
-		it("returns first exercise", function()
+		it("returns the first chapter of the first builtin volume", function()
 			local e = exercises.get(1)
-			is_true(e ~= nil, "first exercise should exist")
+			is_true(e ~= nil, "first chapter should exist")
 			if not e then
 				return
 			end
@@ -22,9 +26,9 @@ describe("exercises", function()
 			eq("Inserting Text", e.title)
 		end)
 
-		it("returns last exercise", function()
+		it("returns the last chapter", function()
 			local e = exercises.get(exercises.count())
-			is_true(e ~= nil, "last exercise should exist")
+			is_true(e ~= nil, "last chapter should exist")
 		end)
 
 		it("returns nil for out of bounds", function()
@@ -33,54 +37,44 @@ describe("exercises", function()
 			h.is_nil(exercises.get(-1))
 		end)
 	end)
+end)
 
-	describe("exercise structure", function()
-		for i = 1, exercises.count() do
-			local e = exercises.get(i)
-			if not e then
-				break
-			end
-			it("exercise " .. e.id .. " has required fields", function()
-				is_true(type(e.id) == "string", "id should be string")
-				is_true(type(e.title) == "string", "title should be string")
-				is_true(type(e.help_tag) == "string", "help_tag should be string")
-				is_true(type(e.actions) == "table", "actions should be table")
-				is_true(#e.actions > 0, "actions should not be empty")
-			end)
-		end
+describe("builtin volumes", function()
+	local volumes = builtin.volumes()
+
+	it("exposes more than one volume", function()
+		is_true(#volumes > 1, "should have multiple volumes")
 	end)
 
-	describe("action structure", function()
-		for i = 1, exercises.count() do
-			local e = exercises.get(i)
-			if not e then
-				break
-			end
-			for _, a in ipairs(e.actions) do
-				it(e.id .. " action '" .. a.action .. "' has required fields", function()
-					is_true(type(a.action) == "string", "action should be string")
-					is_true(type(a.display) == "string", "display should be string")
-					is_true(type(a.desc) == "string", "desc should be string")
-					is_true(#a.action > 0, "action should not be empty")
-					is_true(#a.display > 0, "display should not be empty")
-					is_true(#a.desc > 0, "desc should not be empty")
+	local seen_ids = {}
+	for _, v in ipairs(volumes) do
+		describe("volume " .. v.name, function()
+			it("has chapters", function()
+				is_true(#v.chapters > 0)
+			end)
+			for _, ch in ipairs(v.chapters) do
+				it("chapter " .. ch.id .. " is structurally valid", function()
+					is_true(type(ch.id) == "string" and #ch.id > 0)
+					is_true(type(ch.title) == "string" and #ch.title > 0)
+					is_true(type(ch.help_tag) == "string")
+					is_true(type(ch.actions) == "table" and #ch.actions > 0)
+					for _, a in ipairs(ch.actions) do
+						is_true(type(a.action) == "string" and #a.action > 0)
+						is_true(type(a.display) == "string" and #a.display > 0)
+						is_true(type(a.desc) == "string" and #a.desc > 0)
+					end
 				end)
 			end
-		end
-	end)
-
-	describe("unique IDs", function()
-		it("all exercise IDs are unique", function()
-			local seen = {}
-			for i = 1, exercises.count() do
-				local e = exercises.get(i)
-				if not e then
-					break
-				end
-				is_true(not seen[e.id], "duplicate ID: " .. e.id)
-				seen[e.id] = true
-			end
 		end)
+	end
+
+	it("chapter IDs are globally unique across volumes", function()
+		for _, v in ipairs(volumes) do
+			for _, ch in ipairs(v.chapters) do
+				is_true(not seen_ids[ch.id], "duplicate chapter id: " .. ch.id)
+				seen_ids[ch.id] = true
+			end
+		end
 	end)
 end)
 
