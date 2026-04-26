@@ -128,6 +128,44 @@ local function list_lua_files(dir)
 	return files
 end
 
+--- Collect *.lua files from a dir and all its immediate subdirectories.
+--- Files at the root take precedence; subdir files are appended sorted by
+--- subdir name then filename. Hidden directories (starting with ".") are skipped.
+---@param root string
+---@return string[]
+local function list_lua_files_deep(root)
+	local expanded = vim.fn.expand(root)
+	if vim.fn.isdirectory(expanded) == 0 then
+		return {}
+	end
+
+	local root_files = {}
+	local subdir_files = {}
+	local entries = vim.fn.readdir(expanded)
+
+	for _, entry in ipairs(entries) do
+		local full = expanded .. "/" .. entry
+		if entry:sub(-4) == ".lua" then
+			table.insert(root_files, full)
+		elseif entry:sub(1, 1) ~= "." and vim.fn.isdirectory(full) == 1 then
+			local sub = list_lua_files(full)
+			for _, f in ipairs(sub) do
+				table.insert(subdir_files, f)
+			end
+		end
+	end
+
+	table.sort(root_files)
+	-- subdir_files is already sorted within each subdir; sort across subdirs by full path
+	table.sort(subdir_files)
+
+	local out = root_files
+	for _, f in ipairs(subdir_files) do
+		table.insert(out, f)
+	end
+	return out
+end
+
 M._list_lua_files = list_lua_files
 
 --- Resolve a set to a list of volumes.
@@ -140,15 +178,16 @@ function M.load(set)
 		return builtin.volumes()
 	end
 
-	local dir
+	local lua_files
 	if k == "github" then
-		dir = M.cache_dir(set.name) .. "/exercises"
+		-- Scan root + all immediate subdirs so any repo layout works.
+		lua_files = list_lua_files_deep(M.cache_dir(set.name))
 	else
-		dir = vim.fn.expand(set.source)
+		lua_files = list_lua_files(vim.fn.expand(set.source))
 	end
 
 	local volumes = {}
-	for _, path in ipairs(list_lua_files(dir)) do
+	for _, path in ipairs(lua_files) do
 		local chapters = load_volume_file(path)
 		if chapters then
 			table.insert(volumes, {

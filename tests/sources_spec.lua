@@ -83,6 +83,18 @@ describe("sources.load (local dir)", function()
 	)
 	write(dir .. "/99-bad.lua", "return 'not a table'")
 
+	-- Simulate a github repo where volumes are inside a subdir.
+	local repo_dir = vim.fn.tempname() .. "_coach_repo"
+	vim.fn.mkdir(repo_dir .. "/basics", "p")
+	write(
+		repo_dir .. "/basics/01-windows.lua",
+		"return { { id = 'win.1', title = 'Windows', actions = { { action = '<C-w>s', display = 'Ctrl-W s', desc = 'split' } } } }"
+	)
+	write(
+		repo_dir .. "/basics/02-marks.lua",
+		"return { { id = 'mark.1', title = 'Marks', actions = { { action = 'ma', display = 'ma', desc = 'set mark' } } } }"
+	)
+
 	it("loads *.lua files as volumes in sorted order", function()
 		local vols = sources.load({ name = "custom", source = dir })
 		eq(2, #vols)
@@ -108,6 +120,38 @@ describe("sources.load (local dir)", function()
 	it("handles non-existent directory", function()
 		local vols = sources.load({ name = "nope", source = "/does/not/exist" })
 		eq(0, #vols)
+	end)
+end)
+
+describe("sources github deep scan", function()
+	local repo_dir = vim.fn.tempname() .. "_coach_deep_repo"
+	vim.fn.mkdir(repo_dir .. "/basics", "p")
+
+	local function write(path, contents)
+		local f = assert(io.open(path, "w"))
+		f:write(contents)
+		f:close()
+	end
+	write(
+		repo_dir .. "/basics/01-windows.lua",
+		"return { { id = 'win.1', title = 'W', actions = { { action = '<C-w>s', display = 'Ctrl-W s', desc = 'split' } } } }"
+	)
+	write(
+		repo_dir .. "/basics/02-marks.lua",
+		"return { { id = 'mark.1', title = 'M', actions = { { action = 'ma', display = 'ma', desc = 'set mark' } } } }"
+	)
+
+	it("finds volumes in a subdir of the repo root", function()
+		-- Simulate a github set by overriding cache_dir to point at our fake repo.
+		local orig_cache = sources.cache_dir
+		---@diagnostic disable-next-line: duplicate-set-field
+		sources.cache_dir = function(_) return repo_dir end
+		local vols = sources.load({ name = "extras", source = "github:test/repo" })
+		---@diagnostic disable-next-line: duplicate-set-field
+		sources.cache_dir = orig_cache
+		eq(2, #vols)
+		eq("01-windows", vols[1].name)
+		eq("02-marks", vols[2].name)
 	end)
 end)
 

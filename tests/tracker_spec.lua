@@ -208,4 +208,39 @@ describe("tracker module", function()
 	end)
 end)
 
+describe("resolve_alternative", function()
+	-- Test that alternative keybindings (e.g. <leader>| -> <C-w>v) are resolved
+	-- to the canonical exercise action for counting purposes.
+
+	local exercise = {
+		id = "test.alt",
+		title = "T",
+		actions = { { action = "<C-w>v", display = "Ctrl-W v", desc = "Split" } },
+	}
+
+	it("get_alternatives finds a direct-key RHS mapping as an alternative", function()
+		-- Set a known leader so format_key_display normalises correctly.
+		local orig_leader = vim.g.mapleader
+		vim.g.mapleader = " "
+		vim.keymap.set("n", "<leader>X", "<C-w>v", { desc = "Test split" })
+
+		package.loaded["coach.keybinds"] = nil
+		local keybinds = require("coach.keybinds")
+		local alts = keybinds.get_alternatives(exercise)
+		local found = alts["<C-w>v"] and vim.tbl_contains(alts["<C-w>v"], "<leader>X")
+		is_true(found == true, "expected <leader>X in alternatives for <C-w>v")
+
+		vim.keymap.del("n", "<leader>X")
+		vim.g.mapleader = orig_leader
+	end)
+
+	it("get_alternatives does not list unmapped keys", function()
+		package.loaded["coach.keybinds"] = nil
+		local keybinds = require("coach.keybinds")
+		local alts = keybinds.get_alternatives(exercise)
+		local found = alts["<C-w>v"] and vim.tbl_contains(alts["<C-w>v"], "<leader>NOPE_XYZ")
+		is_true(not found, "unmapped key should not appear as alternative")
+	end)
+end)
+
 h.summary()

@@ -19,6 +19,12 @@ local COOLDOWN = 3
 ---@type string[]
 local recent_actions = {}
 
+--- Cached reverse-alternatives map for the current exercise.
+--- Maps formatted-display alternative (e.g. "<leader>|") → canonical action (e.g. "<C-w>v").
+--- Invalidated whenever the exercise id changes.
+---@type { id: string, reverse: table<string, string> }|nil
+local alt_cache = nil
+
 --- Next keybind string (set from init.lua)
 ---@type string
 local next_key = "<leader>kn"
@@ -78,6 +84,26 @@ local function current_action_set()
 	return set
 end
 
+--- Look up `action` in the alternatives of `exercise`.
+--- Returns the canonical exercise action if `action` is a known alternative, else nil.
+--- Result is cached per exercise id.
+---@param action string
+---@param exercise table
+---@return string|nil
+local function resolve_alternative(action, exercise)
+	if not alt_cache or alt_cache.id ~= exercise.id then
+		local forward = keybinds.get_alternatives(exercise)
+		local reverse = {}
+		for canonical, display_list in pairs(forward) do
+			for _, disp in ipairs(display_list) do
+				reverse[disp] = canonical
+			end
+		end
+		alt_cache = { id = exercise.id, reverse = reverse }
+	end
+	return alt_cache.reverse[action]
+end
+
 --- Handle an action from track-action.nvim
 ---@param action string
 ---@param data table
@@ -90,9 +116,16 @@ local function on_action(action, data)
 	-- Track all actions in the recent history for cooldown purposes,
 	-- but only process actions that belong to the current exercise.
 	if not action_set[match_action] then
-		log.debug("on_action: not in exercise, skip")
-		push_recent(action)
-		return
+		-- Check if the action is an alternative keybinding for an exercise action
+		-- (e.g. <leader>| mapped to <C-w>v should count toward <C-w>v).
+		local exercise = exercises.get(progress.get_exercise_index())
+		local alt = exercise and resolve_alternative(match_action, exercise)
+		if not alt then
+			log.debug("on_action: not in exercise, skip")
+			push_recent(action)
+			return
+		end
+		match_action = alt
 	end
 
 	if progress.is_action_complete(match_action) then
@@ -188,6 +221,7 @@ function M.stop()
 	key_callback = nil
 	cmd_callback = nil
 	recent_actions = {}
+	alt_cache = nil
 end
 
 --- Check if tracker is active

@@ -55,6 +55,13 @@ function M.start()
 			end)
 		else
 			vim.schedule(render_current)
+			-- Re-render once more after lazy-loaded plugins have had a chance to
+			-- register their keymaps, so alternative keybinds show up correctly.
+			vim.defer_fn(function()
+				if active and window.is_open() and not welcome_active then
+					render_current()
+				end
+			end, 250)
 		end
 	end
 	active = true
@@ -497,10 +504,21 @@ function M.setup(opts)
 		end, { desc = "Coach: pick volume" })
 	end
 
-	-- Auto-start if coaching was active last session
+	-- Auto-start if coaching was active last session.
+	-- Defer to VimEnter so lazy-loaded plugins have registered their keymaps
+	-- before we render the alternative-keybind section.
 	progress.load()
 	if progress.is_coaching_active() then
-		M.start()
+		if vim.v.vim_did_enter == 1 then
+			M.start()
+		else
+			vim.api.nvim_create_autocmd("VimEnter", {
+				once = true,
+				callback = function()
+					M.start()
+				end,
+			})
+		end
 	end
 end
 
