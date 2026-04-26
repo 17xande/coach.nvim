@@ -75,11 +75,10 @@ use the `ex:` prefix (e.g. `ex:jumps`).
 
 ### Negative triggers
 
-A chapter may also declare a `negatives` list. Each entry is shaped like an
-action, but pressing it **decrements** every positive action's count for that
-chapter (floored at zero). Use it to punish bad habits — e.g. mark `l` and
-`<Right>` as negatives in a `w`/`W` chapter so reaching for arrow keys eats
-your progress.
+A chapter may also declare a `negatives` list of **rules**. Each rule has
+`triggers` (the bad-habit keys), `decrement` (which positive actions get
+their count lowered when the rule fires, floored at zero), and an optional
+`message` shown in the floating window when it fires.
 
 ```lua
 {
@@ -90,22 +89,22 @@ your progress.
     { action = "W", display = "W", desc = "WORD forward" },
   },
   negatives = {
-    -- Decrement only after 4 consecutive `l` presses.
-    { action = "l", display = "l", desc = "Use w/W instead", threshold = 4 },
-    -- Any counted `l` (4l, 12l, …) decrements immediately.
-    { action = "[count]l", display = "{N}l", desc = "Lazy jump" },
-    -- Arrow key: zero tolerance.
-    { action = "<Right>", display = "→", desc = "No arrow keys" },
+    {
+      triggers  = { "[4]l", "[2]<Right>", "[count]l" },
+      decrement = { "w", "W" },
+      message   = "Use w/W instead of l",
+    },
   },
 }
 ```
 
-**Threshold.** A negative entry may set `threshold = N` (default `1`). The
-decrement only fires after N *consecutive* presses of that exact action.
-Pressing anything else — a positive action, a different negative, an
-unrelated key — resets the streak.
+**`[N]` prefix.** A trigger may carry an `[N]` prefix requiring N *consecutive*
+presses of that exact action before the rule fires. Without a prefix, threshold
+defaults to 1. The streak resets when any non-trigger action is seen (positives,
+unrelated keys) or when a *different* trigger inside the same rule is pressed.
 
 **Action format.** Action strings follow track-action.nvim's emit format. A
 plain `"l"` matches `l` only. To match counted forms like `4l` or `12l`, use
 the literal string `"[count]l"` — track-action strips the count and prefixes
-`[count]` to distinguish from the uncounted variant.
+`[count]` to distinguish from the uncounted variant. The two are independent
+triggers; you can list both in the same rule's `triggers`.

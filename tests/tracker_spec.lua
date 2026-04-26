@@ -193,91 +193,182 @@ describe("resolve_match_action", function()
 	end)
 end)
 
-describe("negative streak (_tick_negative)", function()
-	local function fresh_tracker()
+describe("parse_trigger", function()
+	local function fresh()
 		package.loaded["coach.tracker"] = nil
-		local t = require("coach.tracker")
-		t._reset_negative_streak()
-		return t
+		return require("coach.tracker")
 	end
 
-	it("non-negative actions never trigger and reset the streak", function()
-		local t = fresh_tracker()
-		local negs = { ["l"] = { action = "l", threshold = 2 } }
-		t._tick_negative("l", negs) -- streak: l=1
-		local _, count = t._get_negative_streak()
-		eq(1, count)
-
-		local trig, entry = t._tick_negative("w", negs)
-		is_false(trig)
-		is_true(entry == nil)
-		local _, count2 = t._get_negative_streak()
-		eq(0, count2)
+	it("parses plain action with default threshold 1", function()
+		local t = fresh()
+		local act, n = t._parse_trigger("l")
+		eq("l", act)
+		eq(1, n)
 	end)
+
+	it("parses [N] prefix", function()
+		local t = fresh()
+		local act, n = t._parse_trigger("[4]l")
+		eq("l", act)
+		eq(4, n)
+	end)
+
+	it("preserves [count] literal as part of the action", function()
+		local t = fresh()
+		local act, n = t._parse_trigger("[count]l")
+		eq("[count]l", act)
+		eq(1, n)
+	end)
+
+	it("[N] prefix combines with [count] action", function()
+		local t = fresh()
+		local act, n = t._parse_trigger("[3][count]l")
+		eq("[count]l", act)
+		eq(3, n)
+	end)
+
+	it("works with bracketed special keys", function()
+		local t = fresh()
+		local act, n = t._parse_trigger("[2]<Right>")
+		eq("<Right>", act)
+		eq(2, n)
+	end)
+end)
+
+describe("negative rules (_tick_rules)", function()
+	local function fresh()
+		package.loaded["coach.tracker"] = nil
+		return require("coach.tracker")
+	end
+
+	local function rules_for(t, exercise)
+		return t._compile_rules_for(exercise)
+	end
 
 	it("threshold default 1 fires on first press", function()
-		local t = fresh_tracker()
-		local negs = { ["l"] = { action = "l" } } -- no threshold = default 1
-		local trig = t._tick_negative("l", negs)
-		is_true(trig)
+		local t = fresh()
+		local rules = rules_for(t, {
+			negatives = { { triggers = { "l" }, decrement = { "w" } } },
+		})
+		local fired = t._tick_rules("l", rules)
+		eq(1, #fired)
 	end)
 
-	it("threshold N requires N consecutive presses", function()
-		local t = fresh_tracker()
-		local negs = { ["l"] = { action = "l", threshold = 4 } }
-		is_false((t._tick_negative("l", negs)))
-		is_false((t._tick_negative("l", negs)))
-		is_false((t._tick_negative("l", negs)))
-		is_true((t._tick_negative("l", negs)))
+	it("threshold [N] requires N consecutive presses", function()
+		local t = fresh()
+		local rules = rules_for(t, {
+			negatives = { { triggers = { "[4]l" }, decrement = { "w" } } },
+		})
+		eq(0, #t._tick_rules("l", rules))
+		eq(0, #t._tick_rules("l", rules))
+		eq(0, #t._tick_rules("l", rules))
+		eq(1, #t._tick_rules("l", rules))
 	end)
 
-	it("after firing, streak resets and another N presses are required", function()
-		local t = fresh_tracker()
-		local negs = { ["l"] = { action = "l", threshold = 3 } }
-		t._tick_negative("l", negs)
-		t._tick_negative("l", negs)
-		is_true((t._tick_negative("l", negs))) -- 3rd fires
-		is_false((t._tick_negative("l", negs))) -- 1st of next streak
-		is_false((t._tick_negative("l", negs))) -- 2nd
-		is_true((t._tick_negative("l", negs))) -- 3rd fires again
+	it("after firing, streak resets", function()
+		local t = fresh()
+		local rules = rules_for(t, {
+			negatives = { { triggers = { "[3]l" }, decrement = { "w" } } },
+		})
+		t._tick_rules("l", rules)
+		t._tick_rules("l", rules)
+		eq(1, #t._tick_rules("l", rules)) -- fires
+		eq(0, #t._tick_rules("l", rules)) -- 1 of next streak
+		eq(0, #t._tick_rules("l", rules))
+		eq(1, #t._tick_rules("l", rules)) -- fires
 	end)
 
-	it("a non-negative key in the middle resets the streak", function()
-		local t = fresh_tracker()
-		local negs = { ["l"] = { action = "l", threshold = 4 } }
-		t._tick_negative("l", negs)
-		t._tick_negative("l", negs)
-		t._tick_negative("l", negs) -- streak=3
-		t._tick_negative("w", negs) -- reset
-		is_false((t._tick_negative("l", negs))) -- streak=1
-		is_false((t._tick_negative("l", negs))) -- streak=2
-		is_false((t._tick_negative("l", negs))) -- streak=3
-		is_true((t._tick_negative("l", negs))) -- streak=4 fires
+	it("non-trigger action resets the streak", function()
+		local t = fresh()
+		local rules = rules_for(t, {
+			negatives = { { triggers = { "[4]l" }, decrement = { "w" } } },
+		})
+		t._tick_rules("l", rules)
+		t._tick_rules("l", rules)
+		t._tick_rules("l", rules) -- streak=3
+		t._tick_rules("w", rules) -- not a trigger → reset
+		eq(0, #t._tick_rules("l", rules))
+		eq(0, #t._tick_rules("l", rules))
+		eq(0, #t._tick_rules("l", rules))
+		eq(1, #t._tick_rules("l", rules)) -- streak=4 fires
 	end)
 
-	it("a different negative resets the streak to 1 for that key", function()
-		local t = fresh_tracker()
-		local negs = {
-			["l"] = { action = "l", threshold = 4 },
-			["h"] = { action = "h", threshold = 4 },
-		}
-		t._tick_negative("l", negs)
-		t._tick_negative("l", negs) -- l streak=2
-		is_false((t._tick_negative("h", negs))) -- h streak=1, l streak gone
-		local action, count = t._get_negative_streak()
-		eq("h", action)
-		eq(1, count)
+	it("different trigger inside same rule restarts streak at 1", function()
+		local t = fresh()
+		local rules = rules_for(t, {
+			negatives = { { triggers = { "[4]l", "[4]<Right>" }, decrement = { "w" } } },
+		})
+		t._tick_rules("l", rules)
+		t._tick_rules("l", rules) -- l streak=2
+		eq(0, #t._tick_rules("<Right>", rules)) -- restart at 1 for <Right>
+		eq(0, #t._tick_rules("<Right>", rules))
+		eq(0, #t._tick_rules("<Right>", rules))
+		eq(1, #t._tick_rules("<Right>", rules)) -- fires
+	end)
+
+	it("two distinct triggers in one rule each fire at their own threshold", function()
+		local t = fresh()
+		local rules = rules_for(t, {
+			negatives = { { triggers = { "[4]l", "[2]<Right>" }, decrement = { "w" } } },
+		})
+		eq(0, #t._tick_rules("<Right>", rules))
+		eq(1, #t._tick_rules("<Right>", rules)) -- fires at 2
+	end)
+
+	it("rules are independent across the negatives list", function()
+		local t = fresh()
+		local rules = rules_for(t, {
+			negatives = {
+				{ triggers = { "[2]l" }, decrement = { "w" } },
+				{ triggers = { "[3]h" }, decrement = { "b" } },
+			},
+		})
+		eq(0, #t._tick_rules("l", rules))
+		local fired = t._tick_rules("l", rules)
+		eq(1, #fired)
+		eq("w", fired[1].decrement[1])
+
+		eq(0, #t._tick_rules("h", rules))
+		eq(0, #t._tick_rules("h", rules))
+		local fired2 = t._tick_rules("h", rules)
+		eq(1, #fired2)
+		eq("b", fired2[1].decrement[1])
 	end)
 
 	it("[count]l is a separate trigger from plain l", function()
-		local t = fresh_tracker()
-		local negs = {
-			["l"] = { action = "l", threshold = 4 },
-			["[count]l"] = { action = "[count]l" }, -- threshold default 1
-		}
-		t._tick_negative("l", negs) -- l streak=1
-		t._tick_negative("l", negs) -- l streak=2
-		is_true((t._tick_negative("[count]l", negs))) -- counted variant fires immediately
+		local t = fresh()
+		local rules = rules_for(t, {
+			negatives = {
+				{ triggers = { "[4]l", "[count]l" }, decrement = { "w" } },
+			},
+		})
+		t._tick_rules("l", rules)
+		t._tick_rules("l", rules) -- l streak=2, below threshold 4
+		eq(1, #t._tick_rules("[count]l", rules)) -- counted variant fires immediately
+	end)
+
+	it("non-trigger action does not fire and does not stop later rules", function()
+		local t = fresh()
+		local rules = rules_for(t, {
+			negatives = { { triggers = { "l" }, decrement = { "w" } } },
+		})
+		eq(0, #t._tick_rules("w", rules)) -- positive press, no fire
+		eq(1, #t._tick_rules("l", rules)) -- still fires
+	end)
+
+	it("fired rule carries decrement list and message", function()
+		local t = fresh()
+		local rules = rules_for(t, {
+			negatives = {
+				{ triggers = { "l" }, decrement = { "w", "W" }, message = "use w/W" },
+			},
+		})
+		local fired = t._tick_rules("l", rules)
+		eq(1, #fired)
+		eq("use w/W", fired[1].message)
+		eq(2, #fired[1].decrement)
+		eq("w", fired[1].decrement[1])
+		eq("W", fired[1].decrement[2])
 	end)
 end)
 

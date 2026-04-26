@@ -84,68 +84,123 @@ local function current_action_set()
 	return set
 end
 
---- Build a lookup map: action string → negative entry (with optional `threshold`).
----@return table<string, table>
-local function current_negative_map()
+--- Parse a trigger string like "[4]l" or "<Right>" into (action, threshold).
+--- Plain triggers without a `[N]` prefix have threshold 1.
+---@param trigger string
+---@return string action, number threshold
+function M._parse_trigger(trigger)
+	local n, rest = trigger:match("^%[(%d+)%](.+)$")
+	if n then
+		return rest, tonumber(n) or 1
+	end
+	return trigger, 1
+end
+
+--- Compiled negative rule for the active exercise.
+--- @class CompiledRule
+--- @field triggers table<string, number>  -- action → threshold
+--- @field decrement string[]               -- positive actions to decrement on fire
+--- @field message string|nil               -- optional UI message
+--- @field streak { action: string, count: number }  -- mutable per-rule runtime state
+
+--- Cache of compiled rules for the current exercise.
+---@type { id: string, rules: CompiledRule[] }|nil
+local rules_cache = nil
+
+--- Build (or return cached) compiled rules for the active exercise.
+---@return CompiledRule[]
+local function compiled_rules()
 	local exercise = exercises.get(progress.get_exercise_index())
-	if not exercise or not exercise.negatives then
+	if not exercise then
 		return {}
 	end
-
-	local map = {}
-	for _, n in ipairs(exercise.negatives) do
-		map[n.action] = n
+	if rules_cache and rules_cache.id == exercise.id then
+		return rules_cache.rules
 	end
-	return map
+
+	local rules = {}
+	if exercise.negatives then
+		for _, raw in ipairs(exercise.negatives) do
+			local triggers = {}
+			for _, t in ipairs(raw.triggers or {}) do
+				local act, threshold = M._parse_trigger(t)
+				triggers[act] = threshold
+			end
+			table.insert(rules, {
+				triggers = triggers,
+				decrement = raw.decrement or {},
+				message = raw.message,
+				streak = { action = "", count = 0 },
+			})
+		end
+	end
+	rules_cache = { id = exercise.id, rules = rules }
+	return rules
 end
 
---- Consecutive-press streak for the current negative.
---- Cleared when a non-matching action is seen, when the streak's negative changes,
---- or when the active exercise changes.
----@type { action: string, count: number }
-local negative_streak = { action = "", count = 0 }
-
---- Reset the negative streak (called when exercise changes or on tracker stop).
-local function reset_negative_streak()
-	negative_streak = { action = "", count = 0 }
+--- Reset every rule's streak (called on exercise change, tracker start/stop).
+local function reset_negative_streaks()
+	if not rules_cache then
+		return
+	end
+	for _, r in ipairs(rules_cache.rules) do
+		r.streak = { action = "", count = 0 }
+	end
 end
 
---- Update the streak for `match_action` against the current exercise's negatives.
---- Returns true if the streak just hit its threshold (caller should decrement).
---- Returns false otherwise (either not a negative, or streak below threshold).
+--- Drop the rules cache so the next call rebuilds against the current exercise.
+local function invalidate_rules_cache()
+	rules_cache = nil
+end
+
+--- Tick every rule against `match_action`. Returns the list of rules that
+--- fired this tick (caller should decrement and notify per rule).
+--- A non-matching action resets a rule's streak; a different trigger inside
+--- the same rule restarts that rule's streak at 1.
 ---@param match_action string
----@param negatives table<string, table>
----@return boolean trigger, table|nil entry
-function M._tick_negative(match_action, negatives)
-	local entry = negatives[match_action]
-	if not entry then
-		reset_negative_streak()
-		return false, nil
+---@param rules CompiledRule[]
+---@return CompiledRule[] fired
+function M._tick_rules(match_action, rules)
+	local fired = {}
+	for _, r in ipairs(rules) do
+		local threshold = r.triggers[match_action]
+		if threshold then
+			if r.streak.action == match_action then
+				r.streak.count = r.streak.count + 1
+			else
+				r.streak = { action = match_action, count = 1 }
+			end
+			if r.streak.count >= threshold then
+				r.streak = { action = "", count = 0 }
+				table.insert(fired, r)
+			end
+		else
+			r.streak = { action = "", count = 0 }
+		end
 	end
-
-	if negative_streak.action ~= match_action then
-		negative_streak = { action = match_action, count = 1 }
-	else
-		negative_streak.count = negative_streak.count + 1
-	end
-
-	local threshold = entry.threshold or 1
-	if negative_streak.count >= threshold then
-		negative_streak.count = 0
-		return true, entry
-	end
-	return false, entry
+	return fired
 end
 
---- Test-only: inspect the current streak.
----@return string action, number count
-function M._get_negative_streak()
-	return negative_streak.action, negative_streak.count
+--- Test helpers.
+function M._reset_rules_cache()
+	rules_cache = nil
 end
-
---- Test-only: reset the streak.
-function M._reset_negative_streak()
-	reset_negative_streak()
+function M._compile_rules_for(exercise)
+	local rules = {}
+	for _, raw in ipairs(exercise.negatives or {}) do
+		local triggers = {}
+		for _, t in ipairs(raw.triggers or {}) do
+			local act, threshold = M._parse_trigger(t)
+			triggers[act] = threshold
+		end
+		table.insert(rules, {
+			triggers = triggers,
+			decrement = raw.decrement or {},
+			message = raw.message,
+			streak = { action = "", count = 0 },
+		})
+	end
+	return rules
 end
 
 --- Look up `action` in the alternatives of `exercise`.
@@ -164,7 +219,7 @@ local function resolve_alternative(action, exercise)
 			end
 		end
 		alt_cache = { id = exercise.id, reverse = reverse }
-		reset_negative_streak()
+		invalidate_rules_cache()
 	end
 	return alt_cache.reverse[action]
 end
@@ -178,32 +233,42 @@ local function on_action(action, data)
 
 	log.debug("on_action", { action = action, native = data and data.native, match = match_action })
 
-	-- Negative trigger: a "bad habit" key the exercise wants to punish.
-	-- A negative may declare `threshold = N` to require N consecutive presses
-	-- before decrementing. The cooldown ring buffer does NOT apply here —
-	-- threshold replaces that role, and decrement is floored at 0.
-	local negatives = current_negative_map()
-	local triggered, entry = M._tick_negative(match_action, negatives)
-	if entry then
-		push_recent(action)
+	-- Negative rules: a "bad habit" key the exercise wants to punish.
+	-- Each rule lists `triggers` (with optional `[N]` consecutive-press prefix),
+	-- `decrement` (which positive actions get decremented when it fires), and
+	-- an optional `message`. The cooldown ring buffer does NOT apply here —
+	-- the per-trigger threshold replaces that role, and decrement is floored at 0.
+	local rules = compiled_rules()
+	local is_trigger = false
+	for _, r in ipairs(rules) do
+		if r.triggers[match_action] then
+			is_trigger = true
+			break
+		end
+	end
+	-- Always tick — non-trigger actions reset every rule's streak.
+	local fired = M._tick_rules(match_action, rules)
 
-		if not triggered then
-			log.debug("on_action: negative streak building", {
-				match = match_action,
-				streak = select(2, M._get_negative_streak()),
-				threshold = entry.threshold or 1,
-			})
+	if is_trigger then
+		push_recent(action)
+		if #fired == 0 then
+			log.debug("on_action: negative streak building", { match = match_action })
 			return
 		end
 
-		local exercise = exercises.get(progress.get_exercise_index())
-		if exercise then
-			for _, a in ipairs(exercise.actions) do
-				progress.decrement(a.action)
+		for _, r in ipairs(fired) do
+			for _, target in ipairs(r.decrement) do
+				progress.decrement(target)
 			end
-			log.debug("on_action: negative triggered", { match = match_action, counts = progress.get_counts() })
 		end
+		log.debug("on_action: negative rule(s) fired", {
+			match = match_action,
+			fired = #fired,
+			counts = progress.get_counts(),
+		})
 
+		local last_message = fired[#fired].message
+			or ("Bad habit: " .. match_action .. " — progress decremented")
 		vim.schedule(function()
 			if window.is_open() then
 				local ex = exercises.get(progress.get_exercise_index())
@@ -211,7 +276,7 @@ local function on_action(action, data)
 					local sh = keybinds.get_shadowed(ex)
 					local alts = keybinds.get_alternatives(ex)
 					local reps = ex.required_reps or progress.get_required_reps()
-					window.set_message("Bad habit: " .. match_action .. " — progress decremented")
+					window.set_message(last_message)
 					window.render(ex, progress.get_counts(), reps, next_key, sh, alts)
 				end
 			end
@@ -306,7 +371,7 @@ function M.start()
 	end
 
 	recent_actions = {}
-	reset_negative_streak()
+	reset_negative_streaks()
 	key_callback = on_action
 	cmd_callback = on_action
 	track_action.on_key_action(key_callback)
@@ -329,7 +394,7 @@ function M.stop()
 	cmd_callback = nil
 	recent_actions = {}
 	alt_cache = nil
-	reset_negative_streak()
+	reset_negative_streaks()
 end
 
 --- Check if tracker is active

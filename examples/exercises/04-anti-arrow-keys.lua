@@ -1,20 +1,25 @@
--- Volume: Anti-Patterns — punish bad habits with negative triggers.
+-- Volume: Anti-Patterns — punish bad habits with negative rules.
 --
 -- Each chapter declares positive `actions` (what you want to practice) and
--- optional `negatives` (keys that, when pressed, decrement *every* positive
--- action's count for that exercise — floored at zero).
+-- optional `negatives` (rules that decrement specific positive actions when
+-- their triggers fire). Each rule has the shape:
 --
--- A negative may also declare `threshold = N`. The decrement only fires
--- after N *consecutive* presses of that exact action. Pressing anything
--- else (a positive action, a different negative, an unrelated key) resets
--- the streak. This lets you tolerate occasional `l` use while still
--- punishing reflex spam.
+--   {
+--     triggers  = { "[4]l", "[2]<Right>" },  -- list of trigger strings
+--     decrement = { "w", "W" },              -- positives to decrement on fire
+--     message   = "Use w/W instead",         -- optional UI message
+--   }
 --
--- The `action` field follows track-action.nvim's emit format:
---   - "l"          → plain `l` with no count
---   - "[count]l"   → counted `l`, e.g. `4l`, `7l`
--- These are distinct triggers — pick the one that matches the habit you
--- want to stamp out.
+-- A trigger string may carry an `[N]` prefix that requires N *consecutive*
+-- presses of that exact action before the rule fires. Without a prefix,
+-- threshold defaults to 1. The streak resets on any non-trigger action
+-- (positives, unrelated keys) or when a different trigger inside the same
+-- rule is seen.
+--
+-- Action strings follow track-action.nvim's emit format:
+--   "l"          → plain `l` with no count
+--   "[count]l"   → counted `l`, e.g. `4l`, `7l`  (note: literal "[count]")
+-- These are distinct triggers — `[count]l` is a separate emit from `l`.
 --
 -- Note: `<Right>`/`<Left>`/`<Home>`/`<End>` only fire if track-action.nvim
 -- emits them as standalone actions in your environment. `h`/`l` are reliable.
@@ -32,16 +37,17 @@ return {
 			{ action = "e", display = "e", desc = "Word end" },
 		},
 		negatives = {
-			-- 4 consecutive `l` presses → decrement. Occasional `l` is fine.
-			{ action = "l", display = "l", desc = "Use w/e/W after 4 in a row", threshold = 4 },
-			{ action = "h", display = "h", desc = "Use b/B after 4 in a row", threshold = 4 },
-			-- Counted forms are a separate emit from track-action: any `[count]l`
-			-- (e.g. `4l`, `12l`) decrements immediately — too lazy.
-			{ action = "[count]l", display = "{N}l", desc = "Use w/W instead" },
-			{ action = "[count]h", display = "{N}h", desc = "Use b/B instead" },
-			-- Arrow keys: zero tolerance.
-			{ action = "<Right>", display = "→", desc = "No arrow keys" },
-			{ action = "<Left>",  display = "←", desc = "No arrow keys" },
+			{
+				-- 4 consecutive `l`, OR 2 consecutive right-arrows, OR any counted `l`
+				triggers = { "[4]l", "[2]<Right>", "[count]l" },
+				decrement = { "w", "W", "e" },
+				message = "Use w/W/e instead of l",
+			},
+			{
+				triggers = { "[4]h", "[2]<Left>", "[count]h" },
+				decrement = { "b", "B" },
+				message = "Use b/B instead of h",
+			},
 		},
 	},
 	{
@@ -54,8 +60,16 @@ return {
 			{ action = "f", display = "f{c}", desc = "Find char" },
 		},
 		negatives = {
-			{ action = "<Home>", display = "Home", desc = "Use ^ instead" },
-			{ action = "<End>",  display = "End",  desc = "Use $ instead" },
+			{
+				triggers = { "<Home>" },
+				decrement = { "^" },
+				message = "Use ^ instead of Home",
+			},
+			{
+				triggers = { "<End>" },
+				decrement = { "$" },
+				message = "Use $ instead of End",
+			},
 		},
 	},
 }
