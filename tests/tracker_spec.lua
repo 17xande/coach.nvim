@@ -193,6 +193,94 @@ describe("resolve_match_action", function()
 	end)
 end)
 
+describe("negative streak (_tick_negative)", function()
+	local function fresh_tracker()
+		package.loaded["coach.tracker"] = nil
+		local t = require("coach.tracker")
+		t._reset_negative_streak()
+		return t
+	end
+
+	it("non-negative actions never trigger and reset the streak", function()
+		local t = fresh_tracker()
+		local negs = { ["l"] = { action = "l", threshold = 2 } }
+		t._tick_negative("l", negs) -- streak: l=1
+		local _, count = t._get_negative_streak()
+		eq(1, count)
+
+		local trig, entry = t._tick_negative("w", negs)
+		is_false(trig)
+		is_true(entry == nil)
+		local _, count2 = t._get_negative_streak()
+		eq(0, count2)
+	end)
+
+	it("threshold default 1 fires on first press", function()
+		local t = fresh_tracker()
+		local negs = { ["l"] = { action = "l" } } -- no threshold = default 1
+		local trig = t._tick_negative("l", negs)
+		is_true(trig)
+	end)
+
+	it("threshold N requires N consecutive presses", function()
+		local t = fresh_tracker()
+		local negs = { ["l"] = { action = "l", threshold = 4 } }
+		is_false((t._tick_negative("l", negs)))
+		is_false((t._tick_negative("l", negs)))
+		is_false((t._tick_negative("l", negs)))
+		is_true((t._tick_negative("l", negs)))
+	end)
+
+	it("after firing, streak resets and another N presses are required", function()
+		local t = fresh_tracker()
+		local negs = { ["l"] = { action = "l", threshold = 3 } }
+		t._tick_negative("l", negs)
+		t._tick_negative("l", negs)
+		is_true((t._tick_negative("l", negs))) -- 3rd fires
+		is_false((t._tick_negative("l", negs))) -- 1st of next streak
+		is_false((t._tick_negative("l", negs))) -- 2nd
+		is_true((t._tick_negative("l", negs))) -- 3rd fires again
+	end)
+
+	it("a non-negative key in the middle resets the streak", function()
+		local t = fresh_tracker()
+		local negs = { ["l"] = { action = "l", threshold = 4 } }
+		t._tick_negative("l", negs)
+		t._tick_negative("l", negs)
+		t._tick_negative("l", negs) -- streak=3
+		t._tick_negative("w", negs) -- reset
+		is_false((t._tick_negative("l", negs))) -- streak=1
+		is_false((t._tick_negative("l", negs))) -- streak=2
+		is_false((t._tick_negative("l", negs))) -- streak=3
+		is_true((t._tick_negative("l", negs))) -- streak=4 fires
+	end)
+
+	it("a different negative resets the streak to 1 for that key", function()
+		local t = fresh_tracker()
+		local negs = {
+			["l"] = { action = "l", threshold = 4 },
+			["h"] = { action = "h", threshold = 4 },
+		}
+		t._tick_negative("l", negs)
+		t._tick_negative("l", negs) -- l streak=2
+		is_false((t._tick_negative("h", negs))) -- h streak=1, l streak gone
+		local action, count = t._get_negative_streak()
+		eq("h", action)
+		eq(1, count)
+	end)
+
+	it("[count]l is a separate trigger from plain l", function()
+		local t = fresh_tracker()
+		local negs = {
+			["l"] = { action = "l", threshold = 4 },
+			["[count]l"] = { action = "[count]l" }, -- threshold default 1
+		}
+		t._tick_negative("l", negs) -- l streak=1
+		t._tick_negative("l", negs) -- l streak=2
+		is_true((t._tick_negative("[count]l", negs))) -- counted variant fires immediately
+	end)
+end)
+
 describe("tracker module", function()
 	it("is_active returns false initially", function()
 		-- force fresh load

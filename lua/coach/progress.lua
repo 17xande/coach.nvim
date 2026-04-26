@@ -185,6 +185,31 @@ function M.increment(action)
 	return counts[action]
 end
 
+--- Decrement an action's count by 1 (floored at 0).
+--- Used by negative triggers — pressing a "bad habit" key undoes progress.
+---@param action string
+---@return number
+function M.decrement(action)
+	local exercise = exercises.get(current_exercise_index)
+	if not exercise then
+		return 0
+	end
+
+	local counts = exercise_counts[exercise.id]
+	if not counts then
+		return 0
+	end
+
+	local current = counts[action] or 0
+	if current <= 0 then
+		counts[action] = 0
+		return 0
+	end
+
+	counts[action] = current - 1
+	return counts[action]
+end
+
 ---@param action string
 ---@return boolean
 function M.is_action_complete(action)

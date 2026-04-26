@@ -84,6 +84,70 @@ local function current_action_set()
 	return set
 end
 
+--- Build a lookup map: action string → negative entry (with optional `threshold`).
+---@return table<string, table>
+local function current_negative_map()
+	local exercise = exercises.get(progress.get_exercise_index())
+	if not exercise or not exercise.negatives then
+		return {}
+	end
+
+	local map = {}
+	for _, n in ipairs(exercise.negatives) do
+		map[n.action] = n
+	end
+	return map
+end
+
+--- Consecutive-press streak for the current negative.
+--- Cleared when a non-matching action is seen, when the streak's negative changes,
+--- or when the active exercise changes.
+---@type { action: string, count: number }
+local negative_streak = { action = "", count = 0 }
+
+--- Reset the negative streak (called when exercise changes or on tracker stop).
+local function reset_negative_streak()
+	negative_streak = { action = "", count = 0 }
+end
+
+--- Update the streak for `match_action` against the current exercise's negatives.
+--- Returns true if the streak just hit its threshold (caller should decrement).
+--- Returns false otherwise (either not a negative, or streak below threshold).
+---@param match_action string
+---@param negatives table<string, table>
+---@return boolean trigger, table|nil entry
+function M._tick_negative(match_action, negatives)
+	local entry = negatives[match_action]
+	if not entry then
+		reset_negative_streak()
+		return false, nil
+	end
+
+	if negative_streak.action ~= match_action then
+		negative_streak = { action = match_action, count = 1 }
+	else
+		negative_streak.count = negative_streak.count + 1
+	end
+
+	local threshold = entry.threshold or 1
+	if negative_streak.count >= threshold then
+		negative_streak.count = 0
+		return true, entry
+	end
+	return false, entry
+end
+
+--- Test-only: inspect the current streak.
+---@return string action, number count
+function M._get_negative_streak()
+	return negative_streak.action, negative_streak.count
+end
+
+--- Test-only: reset the streak.
+function M._reset_negative_streak()
+	reset_negative_streak()
+end
+
 --- Look up `action` in the alternatives of `exercise`.
 --- Returns the canonical exercise action if `action` is a known alternative, else nil.
 --- Result is cached per exercise id.
@@ -100,6 +164,7 @@ local function resolve_alternative(action, exercise)
 			end
 		end
 		alt_cache = { id = exercise.id, reverse = reverse }
+		reset_negative_streak()
 	end
 	return alt_cache.reverse[action]
 end
@@ -112,6 +177,47 @@ local function on_action(action, data)
 	local match_action = M.resolve_match_action(action, data)
 
 	log.debug("on_action", { action = action, native = data and data.native, match = match_action })
+
+	-- Negative trigger: a "bad habit" key the exercise wants to punish.
+	-- A negative may declare `threshold = N` to require N consecutive presses
+	-- before decrementing. The cooldown ring buffer does NOT apply here —
+	-- threshold replaces that role, and decrement is floored at 0.
+	local negatives = current_negative_map()
+	local triggered, entry = M._tick_negative(match_action, negatives)
+	if entry then
+		push_recent(action)
+
+		if not triggered then
+			log.debug("on_action: negative streak building", {
+				match = match_action,
+				streak = select(2, M._get_negative_streak()),
+				threshold = entry.threshold or 1,
+			})
+			return
+		end
+
+		local exercise = exercises.get(progress.get_exercise_index())
+		if exercise then
+			for _, a in ipairs(exercise.actions) do
+				progress.decrement(a.action)
+			end
+			log.debug("on_action: negative triggered", { match = match_action, counts = progress.get_counts() })
+		end
+
+		vim.schedule(function()
+			if window.is_open() then
+				local ex = exercises.get(progress.get_exercise_index())
+				if ex then
+					local sh = keybinds.get_shadowed(ex)
+					local alts = keybinds.get_alternatives(ex)
+					local reps = ex.required_reps or progress.get_required_reps()
+					window.set_message("Bad habit: " .. match_action .. " — progress decremented")
+					window.render(ex, progress.get_counts(), reps, next_key, sh, alts)
+				end
+			end
+		end)
+		return
+	end
 
 	-- Track all actions in the recent history for cooldown purposes,
 	-- but only process actions that belong to the current exercise.
@@ -200,6 +306,7 @@ function M.start()
 	end
 
 	recent_actions = {}
+	reset_negative_streak()
 	key_callback = on_action
 	cmd_callback = on_action
 	track_action.on_key_action(key_callback)
@@ -222,6 +329,7 @@ function M.stop()
 	cmd_callback = nil
 	recent_actions = {}
 	alt_cache = nil
+	reset_negative_streak()
 end
 
 --- Check if tracker is active
