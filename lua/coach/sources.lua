@@ -174,12 +174,12 @@ M._list_lua_files = list_lua_files
 ---@return { name: string, title?: string, chapters: table[] }[]
 function M.load(set)
 	local k = kind(set.source)
-	if k == "builtin" then
-		return builtin.volumes()
-	end
 
 	local lua_files
-	if k == "github" then
+	if k == "builtin" then
+		local dir = builtin.exercises_dir()
+		lua_files = dir and list_lua_files(dir) or {}
+	elseif k == "github" then
 		-- Scan root + all immediate subdirs so any repo layout works.
 		lua_files = list_lua_files_deep(M.cache_dir(set.name))
 	else
@@ -205,7 +205,7 @@ end
 function M.is_ready(set)
 	local k = kind(set.source)
 	if k == "builtin" then
-		return true
+		return builtin.exercises_dir() ~= nil
 	end
 	if k == "dir" then
 		return vim.fn.isdirectory(vim.fn.expand(set.source)) == 1

@@ -1,7 +1,7 @@
 local h = require("harness")
 local describe, it, eq, is_true = h.describe, h.it, h.eq, h.is_true
 
-local builtin = require("coach.builtin")
+local sources = require("coach.sources")
 local sets = require("coach.sets")
 sets._set_state_file(vim.fn.tempname() .. "_coach_state.json")
 sets.configure({ active = "neovim-manual/01-first-steps" })
@@ -40,7 +40,7 @@ describe("exercises (runtime)", function()
 end)
 
 describe("builtin volumes", function()
-	local volumes = builtin.volumes()
+	local volumes = sources.load({ name = "neovim-manual" })
 
 	it("exposes more than one volume", function()
 		is_true(#volumes > 1, "should have multiple volumes")

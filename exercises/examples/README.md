@@ -1,17 +1,17 @@
 # Example coach.nvim exercise volumes
 
 This directory contains a small set of example **volumes** you can use to test
-coach.nvim's custom-source loading. Each `.lua` file in `exercises/` is one
-volume made up of multiple chapters.
+coach.nvim's custom-source loading. Each `.lua` file here is one volume made up
+of multiple chapters.
 
 ## Volumes
 
 | File | Topic |
 | --- | --- |
-| `exercises/01-windows.lua` | Window splits, navigation, resizing |
-| `exercises/02-marks-and-jumps.lua` | Marks, jump list, change list |
-| `exercises/03-folds.lua` | Manual folds: create, toggle, navigate |
-| `exercises/04-anti-arrow-keys.lua` | Anti-pattern drills with `negatives` to punish bad habits |
+| `01-windows.lua` | Window splits, navigation, resizing |
+| `02-marks-and-jumps.lua` | Marks, jump list, change list |
+| `03-folds.lua` | Manual folds: create, toggle, navigate |
+| `04-anti-arrow-keys.lua` | Anti-pattern drills with `negatives` to punish bad habits |
 
 ## Testing a local directory source
 
@@ -21,7 +21,7 @@ Point a set at this directory directly:
 require("coach").setup({
   sets = {
     { name = "neovim-manual" },
-    { name = "extras", source = "~/dev/coach.nvim/examples/exercises" },
+    { name = "extras", source = "~/dev/coach.nvim/exercises/examples" },
   },
 })
 ```
@@ -31,7 +31,7 @@ Then `:CoachVolume extras/01-windows` to switch.
 ## Testing a GitHub source
 
 1. Create a new GitHub repo (e.g. `you/coach-extras`).
-2. Copy the `exercises/` directory from here to the root of that repo.
+2. Copy these `.lua` files to the root (or an `exercises/` subdir) of that repo.
 3. Push.
 4. Configure coach.nvim:
 

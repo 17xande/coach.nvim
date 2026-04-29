@@ -146,9 +146,9 @@ The `action` string must match what
 Ex-commands use the `ex:` prefix (e.g. `ex:jumps`). Chapter ids must be
 unique within a volume.
 
-An example volume set lives in [`examples/exercises/`](examples/exercises) —
-you can push those three files to a GitHub repo (or point a local set at
-them) to test the loader end-to-end.
+An example volume set lives in [`exercises/examples/`](exercises/examples) —
+you can push those files to a GitHub repo (or point a local set at them)
+to test the loader end-to-end.
 
 ### Commands
 

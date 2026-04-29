@@ -11,7 +11,6 @@ local function fresh_progress()
 	package.loaded["coach.sets"] = nil
 	package.loaded["coach.sources"] = nil
 	package.loaded["coach.builtin"] = nil
-	package.loaded["coach.exercises_data"] = nil
 
 	local sets = require("coach.sets")
 	sets._set_state_file(vim.fn.tempname() .. "_coach_state.json")

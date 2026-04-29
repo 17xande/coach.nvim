@@ -6,7 +6,6 @@ local function fresh()
 	package.loaded["coach.sets"] = nil
 	package.loaded["coach.sources"] = nil
 	package.loaded["coach.builtin"] = nil
-	package.loaded["coach.exercises_data"] = nil
 	local sets = require("coach.sets")
 	sets._set_state_file(vim.fn.tempname() .. "_coach_sets_state.json")
 	return sets
@@ -150,7 +149,6 @@ describe("sets", function()
 			package.loaded["coach.sets"] = nil
 			package.loaded["coach.sources"] = nil
 			package.loaded["coach.builtin"] = nil
-			package.loaded["coach.exercises_data"] = nil
 			local sets1 = require("coach.sets")
 			sets1._set_state_file(state_file)
 			sets1.configure({})
@@ -160,7 +158,6 @@ describe("sets", function()
 			package.loaded["coach.sets"] = nil
 			package.loaded["coach.sources"] = nil
 			package.loaded["coach.builtin"] = nil
-			package.loaded["coach.exercises_data"] = nil
 			local sets2 = require("coach.sets")
 			sets2._set_state_file(state_file)
 			sets2.configure({})
