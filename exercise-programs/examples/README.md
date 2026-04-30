@@ -1,10 +1,10 @@
-# Example coach.nvim exercise volumes
+# Example coach.nvim sessions
 
-This directory contains a small set of example **volumes** you can use to test
-coach.nvim's custom-source loading. Each `.lua` file here is one volume made up
-of multiple chapters.
+This directory contains a small set of example **sessions** you can use to test
+coach.nvim's custom-source loading. Each `.lua` file here is one session made
+up of multiple sets.
 
-## Volumes
+## Sessions
 
 | File | Topic |
 | --- | --- |
@@ -15,29 +15,29 @@ of multiple chapters.
 
 ## Testing a local directory source
 
-Point a set at this directory directly:
+Point a program at this directory directly:
 
 ```lua
 require("coach").setup({
-  sets = {
+  programs = {
     { name = "neovim-manual" },
-    { name = "extras", source = "~/dev/coach.nvim/exercises/examples" },
+    { name = "extras", source = "~/dev/coach.nvim/exercise-programs/examples" },
   },
 })
 ```
 
-Then `:CoachVolume extras/01-windows` to switch.
+Then `:CoachSession extras/01-windows` to switch.
 
 ## Testing a GitHub source
 
 1. Create a new GitHub repo (e.g. `you/coach-extras`).
-2. Copy these `.lua` files to the root (or an `exercises/` subdir) of that repo.
+2. Copy these `.lua` files to the root (or any subdir) of that repo.
 3. Push.
 4. Configure coach.nvim:
 
    ```lua
    require("coach").setup({
-     sets = {
+     programs = {
        { name = "neovim-manual" },
        { name = "extras", source = "github:you/coach-extras" },
      },
@@ -45,14 +45,14 @@ Then `:CoachVolume extras/01-windows` to switch.
    ```
 
 5. Start Neovim. coach.nvim will clone the repo in the background to
-   `~/.local/share/nvim/coach/sets/extras/`.
-6. `:CoachVolume` to pick a volume. Progress is saved per volume at
-   `~/.local/share/nvim/coach/progress/extras/<volume>.json`.
+   `~/.local/share/nvim/coach/programs/extras/`.
+6. `:CoachSession` to pick a session. Progress is saved per session at
+   `~/.local/share/nvim/coach/progress/extras/<session>.json`.
 7. Push a change to the repo, then `:CoachUpdate extras` to pull it.
 
-## Volume file format
+## Session file format
 
-Each volume returns a list of chapter tables:
+Each session returns a list of set tables:
 
 ```lua
 return {
@@ -60,23 +60,23 @@ return {
     id = "win.1",
     title = "Opening Splits",
     help_tag = "opening-window",  -- optional; used by :CoachHelp
-    actions = {
-      { action = "<C-w>s", display = "Ctrl-W s", desc = "Split horizontally" },
+    exercises = {
+      { exercise = "<C-w>s", display = "Ctrl-W s", desc = "Split horizontally" },
       -- ...
     },
   },
-  -- more chapters...
+  -- more sets...
 }
 ```
 
-The `action` field must match exactly what
+The `exercise` field must match exactly what
 [track-action.nvim](https://github.com/17xande/track-action.nvim) emits. Ex-commands
 use the `ex:` prefix (e.g. `ex:jumps`).
 
 ### Negative triggers
 
-A chapter may also declare a `negatives` list of **rules**. Each rule has
-`triggers` (the bad-habit keys), `decrement` (which positive actions get
+A set may also declare a `negatives` list of **rules**. Each rule has
+`triggers` (the bad-habit keys), `decrement` (which positive exercises get
 their count lowered when the rule fires, floored at zero), and an optional
 `message` shown in the floating window when it fires.
 
@@ -84,9 +84,9 @@ their count lowered when the rule fires, floored at zero), and an optional
 {
   id = "anti.word",
   title = "Word Movement (no h/l spam!)",
-  actions = {
-    { action = "w", display = "w", desc = "Word forward" },
-    { action = "W", display = "W", desc = "WORD forward" },
+  exercises = {
+    { exercise = "w", display = "w", desc = "Word forward" },
+    { exercise = "W", display = "W", desc = "WORD forward" },
   },
   negatives = {
     {
@@ -103,7 +103,7 @@ presses of that exact action before the rule fires. Without a prefix, threshold
 defaults to 1. The streak resets when any non-trigger action is seen (positives,
 unrelated keys) or when a *different* trigger inside the same rule is pressed.
 
-**Action format.** Action strings follow track-action.nvim's emit format. A
+**Action format.** Trigger strings follow track-action.nvim's emit format. A
 plain `"l"` matches `l` only. To match counted forms like `4l` or `12l`, use
 the literal string `"[count]l"` — track-action strips the count and prefixes
 `[count]` to distinguish from the uncounted variant. The two are independent

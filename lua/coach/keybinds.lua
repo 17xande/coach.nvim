@@ -75,15 +75,15 @@ function M.format_key_display(key)
 	return key
 end
 
---- Check if an action key is shadowed by a custom mapping in normal mode.
---- An action is shadowed when pressing it will NOT perform the expected exercise action
+--- Check if an exercise key is shadowed by a custom mapping in normal mode.
+--- An exercise is shadowed when pressing it will NOT perform the expected action
 --- because the user has remapped that key to do something else.
 ---
 --- Returns: is_shadowed (bool), description (string|nil)
----@param action string The action key (e.g. "H", "<C-w>h", "gt")
+---@param exercise string The exercise key (e.g. "H", "<C-w>h", "gt")
 ---@return boolean, string|nil
-function M.is_shadowed(action)
-	local map_info = vim.fn.maparg(action, "n", false, true)
+function M.is_shadowed(exercise)
+	local map_info = vim.fn.maparg(exercise, "n", false, true)
 
 	-- No mapping: not shadowed
 	if vim.tbl_isempty(map_info) then
@@ -93,14 +93,14 @@ function M.is_shadowed(action)
 	local rhs = map_info.rhs or ""
 
 	-- Passthrough: rhs is the same key (just adds a description or noremap flag)
-	if rhs == action then
+	if rhs == exercise then
 		return false, nil
 	end
 
 	-- Count-expr motion pattern for single-char keys (e.g. j/k with wrapped-line handling)
 	-- Pattern: v:count == 0 ? 'g<key>' : '<key>'
-	if #action == 1 then
-		local escaped = vim.pesc(action)
+	if #exercise == 1 then
+		local escaped = vim.pesc(exercise)
 		local pattern = "v:count%s*==%s*0%s*%?%s*'g" .. escaped .. "'%s*:%s*'" .. escaped .. "'"
 		if rhs:match(pattern) then
 			return false, nil
@@ -111,29 +111,29 @@ function M.is_shadowed(action)
 	return true, map_info.desc
 end
 
---- Get the set of shadowed actions for an exercise.
----@param exercise table Exercise definition with .actions list
----@return table<string, string|true> Map of action key → description (or true if no desc)
-function M.get_shadowed(exercise)
+--- Get the map of shadowed exercises for a set.
+---@param set table Set definition with .exercises list
+---@return table<string, string|true> Map of exercise key → description (or true if no desc)
+function M.get_shadowed(set)
 	local shadowed = {}
-	for _, a in ipairs(exercise.actions) do
-		local is_sh, desc = M.is_shadowed(a.action)
+	for _, e in ipairs(set.exercises) do
+		local is_sh, desc = M.is_shadowed(e.exercise)
 		if is_sh then
-			shadowed[a.action] = desc or true
+			shadowed[e.exercise] = desc or true
 		end
 	end
 	return shadowed
 end
 
---- Find alternative keybindings that perform the same action as exercise actions.
+--- Find alternative keybindings that perform the same action as the set's exercises.
 --- Scans all normal-mode mappings and resolves their RHS to native equivalents.
----@param exercise table Exercise definition with .actions list
----@return table<string, string[]> Map of action key → list of formatted alternative display strings
-function M.get_alternatives(exercise)
-	-- Build target set: internal_bytes → original action string
+---@param set table Set definition with .exercises list
+---@return table<string, string[]> Map of exercise key → list of formatted alternative display strings
+function M.get_alternatives(set)
+	-- Build target set: internal_bytes → original exercise string
 	local target_internal = {}
-	for _, a in ipairs(exercise.actions) do
-		target_internal[internal_key(a.action)] = a.action
+	for _, e in ipairs(set.exercises) do
+		target_internal[internal_key(e.exercise)] = e.exercise
 	end
 
 	local all_maps = vim.api.nvim_get_keymap("n")
@@ -151,7 +151,7 @@ function M.get_alternatives(exercise)
 		local lhs = map.lhs or ""
 		local rhs = map.rhs or ""
 
-		-- Skip if lhs IS an exercise action (that's the default, not an alternative)
+		-- Skip if lhs IS an exercise key (that's the default, not an alternative)
 		if target_internal[internal_key(lhs)] then
 			goto continue
 		end

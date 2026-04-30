@@ -32,38 +32,38 @@ describe("sources.parse_github", function()
 	end)
 end)
 
-describe("sources.valid_chapter", function()
-	it("accepts a well-formed chapter", function()
-		is_true(sources.valid_chapter({
+describe("sources.valid_set", function()
+	it("accepts a well-formed set", function()
+		is_true(sources.valid_set({
 			id = "x.1",
 			title = "T",
-			actions = { { action = "w", display = "w", desc = "word" } },
+			exercises = { { exercise = "w", display = "w", desc = "word" } },
 		}))
 	end)
 	it("rejects missing id", function()
-		is_false(sources.valid_chapter({ title = "t", actions = { { action = "w", display = "w", desc = "d" } } }))
+		is_false(sources.valid_set({ title = "t", exercises = { { exercise = "w", display = "w", desc = "d" } } }))
 	end)
-	it("rejects empty actions", function()
-		is_false(sources.valid_chapter({ id = "x", title = "t", actions = {} }))
+	it("rejects empty exercises", function()
+		is_false(sources.valid_set({ id = "x", title = "t", exercises = {} }))
 	end)
-	it("rejects malformed action entries", function()
-		is_false(sources.valid_chapter({ id = "x", title = "t", actions = { { action = "w" } } }))
+	it("rejects malformed exercise entries", function()
+		is_false(sources.valid_set({ id = "x", title = "t", exercises = { { exercise = "w" } } }))
 	end)
 end)
 
 describe("sources.load (builtin)", function()
-	it("returns multiple volumes", function()
-		local vols = sources.load({ name = "neovim-manual" })
-		is_true(#vols > 1)
+	it("returns multiple sessions", function()
+		local sessions = sources.load({ name = "user-manual" })
+		is_true(#sessions > 1)
 	end)
-	it("first builtin volume is 01-first-steps", function()
-		local vols = sources.load({ name = "neovim-manual" })
-		eq("01-first-steps", vols[1].name)
+	it("first builtin session is 01-first-steps", function()
+		local sessions = sources.load({ name = "user-manual" })
+		eq("01-first-steps", sessions[1].name)
 	end)
 end)
 
 describe("sources.load (local dir)", function()
-	-- Build a temp dir with two volume files + one invalid file.
+	-- Build a temp dir with two session files + one invalid file.
 	local dir = vim.fn.tempname() .. "_coach_src_dir"
 	vim.fn.mkdir(dir, "p")
 
@@ -75,51 +75,39 @@ describe("sources.load (local dir)", function()
 
 	write(
 		dir .. "/01-alpha.lua",
-		"return { { id = 'a.1', title = 'A', actions = { { action = 'w', display = 'w', desc = 'd' } } } }"
+		"return { { id = 'a.1', title = 'A', exercises = { { exercise = 'w', display = 'w', desc = 'd' } } } }"
 	)
 	write(
 		dir .. "/02-beta.lua",
-		"return { { id = 'b.1', title = 'B', actions = { { action = 'e', display = 'e', desc = 'd' } } } }"
+		"return { { id = 'b.1', title = 'B', exercises = { { exercise = 'e', display = 'e', desc = 'd' } } } }"
 	)
 	write(dir .. "/99-bad.lua", "return 'not a table'")
 
-	-- Simulate a github repo where volumes are inside a subdir.
-	local repo_dir = vim.fn.tempname() .. "_coach_repo"
-	vim.fn.mkdir(repo_dir .. "/basics", "p")
-	write(
-		repo_dir .. "/basics/01-windows.lua",
-		"return { { id = 'win.1', title = 'Windows', actions = { { action = '<C-w>s', display = 'Ctrl-W s', desc = 'split' } } } }"
-	)
-	write(
-		repo_dir .. "/basics/02-marks.lua",
-		"return { { id = 'mark.1', title = 'Marks', actions = { { action = 'ma', display = 'ma', desc = 'set mark' } } } }"
-	)
-
-	it("loads *.lua files as volumes in sorted order", function()
-		local vols = sources.load({ name = "custom", source = dir })
-		eq(2, #vols)
-		eq("01-alpha", vols[1].name)
-		eq("02-beta", vols[2].name)
+	it("loads *.lua files as sessions in sorted order", function()
+		local sessions = sources.load({ name = "custom", source = dir })
+		eq(2, #sessions)
+		eq("01-alpha", sessions[1].name)
+		eq("02-beta", sessions[2].name)
 	end)
 
 	it("skips files that do not return a table", function()
-		local vols = sources.load({ name = "custom", source = dir })
-		for _, v in ipairs(vols) do
-			if v.name == "99-bad" then
-				error("bad volume should have been skipped")
+		local sessions = sources.load({ name = "custom", source = dir })
+		for _, s in ipairs(sessions) do
+			if s.name == "99-bad" then
+				error("bad session should have been skipped")
 			end
 		end
 	end)
 
-	it("each volume has its chapters", function()
-		local vols = sources.load({ name = "custom", source = dir })
-		eq(1, #vols[1].chapters)
-		eq("a.1", vols[1].chapters[1].id)
+	it("each session has its sets", function()
+		local sessions = sources.load({ name = "custom", source = dir })
+		eq(1, #sessions[1].sets)
+		eq("a.1", sessions[1].sets[1].id)
 	end)
 
 	it("handles non-existent directory", function()
-		local vols = sources.load({ name = "nope", source = "/does/not/exist" })
-		eq(0, #vols)
+		local sessions = sources.load({ name = "nope", source = "/does/not/exist" })
+		eq(0, #sessions)
 	end)
 end)
 
@@ -134,30 +122,30 @@ describe("sources github deep scan", function()
 	end
 	write(
 		repo_dir .. "/basics/01-windows.lua",
-		"return { { id = 'win.1', title = 'W', actions = { { action = '<C-w>s', display = 'Ctrl-W s', desc = 'split' } } } }"
+		"return { { id = 'win.1', title = 'W', exercises = { { exercise = '<C-w>s', display = 'Ctrl-W s', desc = 'split' } } } }"
 	)
 	write(
 		repo_dir .. "/basics/02-marks.lua",
-		"return { { id = 'mark.1', title = 'M', actions = { { action = 'ma', display = 'ma', desc = 'set mark' } } } }"
+		"return { { id = 'mark.1', title = 'M', exercises = { { exercise = 'ma', display = 'ma', desc = 'set mark' } } } }"
 	)
 
-	it("finds volumes in a subdir of the repo root", function()
-		-- Simulate a github set by overriding cache_dir to point at our fake repo.
+	it("finds sessions in a subdir of the repo root", function()
+		-- Simulate a github program by overriding cache_dir to point at our fake repo.
 		local orig_cache = sources.cache_dir
 		---@diagnostic disable-next-line: duplicate-set-field
 		sources.cache_dir = function(_) return repo_dir end
-		local vols = sources.load({ name = "extras", source = "github:test/repo" })
+		local sessions = sources.load({ name = "extras", source = "github:test/repo" })
 		---@diagnostic disable-next-line: duplicate-set-field
 		sources.cache_dir = orig_cache
-		eq(2, #vols)
-		eq("01-windows", vols[1].name)
-		eq("02-marks", vols[2].name)
+		eq(2, #sessions)
+		eq("01-windows", sessions[1].name)
+		eq("02-marks", sessions[2].name)
 	end)
 end)
 
 describe("sources.is_ready", function()
 	it("is always true for builtin", function()
-		is_true(sources.is_ready({ name = "neovim-manual" }))
+		is_true(sources.is_ready({ name = "user-manual" }))
 	end)
 	it("is true for an existing dir", function()
 		local dir = vim.fn.tempname() .. "_coach_ready"

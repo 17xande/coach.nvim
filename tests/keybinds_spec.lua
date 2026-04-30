@@ -65,29 +65,29 @@ describe("keybinds", function()
 	end)
 
 	describe("get_shadowed", function()
-		it("returns empty table when no actions are shadowed", function()
+		it("returns empty table when no exercises are shadowed", function()
 			local kb = fresh_keybinds()
 			local exercise = {
 				id = "test",
 				title = "Test",
-				actions = {
-					{ action = "h", display = "h", desc = "left" },
-					{ action = "j", display = "j", desc = "down" },
+				exercises = {
+					{ exercise = "h", display = "h", desc = "left" },
+					{ exercise = "j", display = "j", desc = "down" },
 				},
 			}
 			local shadowed = kb.get_shadowed(exercise)
 			eq(0, vim.tbl_count(shadowed))
 		end)
 
-		it("identifies shadowed actions", function()
+		it("identifies shadowed exercises", function()
 			vim.keymap.set("n", "H", "<cmd>bprevious<cr>", { desc = "Prev Buffer" })
 			local kb = fresh_keybinds()
 			local exercise = {
 				id = "test",
 				title = "Test",
-				actions = {
-					{ action = "H", display = "H", desc = "top of screen" },
-					{ action = "j", display = "j", desc = "down" },
+				exercises = {
+					{ exercise = "H", display = "H", desc = "top of screen" },
+					{ exercise = "j", display = "j", desc = "down" },
 				},
 			}
 			local shadowed = kb.get_shadowed(exercise)
@@ -102,17 +102,17 @@ describe("keybinds", function()
 			local exercise = {
 				id = "test",
 				title = "Test",
-				actions = { { action = "H", display = "H", desc = "top" } },
+				exercises = { { exercise = "H", display = "H", desc = "top" } },
 			}
 			local shadowed = kb.get_shadowed(exercise)
 			eq("Prev Buffer", shadowed["H"])
 			vim.keymap.del("n", "H")
 		end)
 
-		it("returns empty for exercise with no actions", function()
+		it("returns empty for set with no exercises", function()
 			local kb = fresh_keybinds()
-			local exercise = { id = "x", title = "x", actions = {} }
-			local shadowed = kb.get_shadowed(exercise)
+			local set = { id = "x", title = "x", exercises = {} }
+			local shadowed = kb.get_shadowed(set)
 			eq(0, vim.tbl_count(shadowed))
 		end)
 	end)
@@ -141,7 +141,7 @@ describe("keybinds", function()
 		it("returns empty when no alternatives exist", function()
 			local kb = fresh_keybinds()
 			local exercise = {
-				actions = { { action = "h", display = "h", desc = "left" } },
+				exercises = { { exercise = "h", display = "h", desc = "left" } },
 			}
 			local alts = kb.get_alternatives(exercise)
 			eq(0, vim.tbl_count(alts))
@@ -151,7 +151,7 @@ describe("keybinds", function()
 			vim.keymap.set("n", "<C-h>", "<cmd>wincmd h<cr>", {})
 			local kb = fresh_keybinds()
 			local exercise = {
-				actions = { { action = "<C-w>h", display = "Ctrl-W h", desc = "Window left" } },
+				exercises = { { exercise = "<C-w>h", display = "Ctrl-W h", desc = "Window left" } },
 			}
 			local alts = kb.get_alternatives(exercise)
 			is_true(alts["<C-w>h"] ~= nil)
@@ -164,7 +164,7 @@ describe("keybinds", function()
 			vim.keymap.set("n", "<C-j>", "<C-w>j", {})
 			local kb = fresh_keybinds()
 			local exercise = {
-				actions = { { action = "<C-w>j", display = "Ctrl-W j", desc = "Window down" } },
+				exercises = { { exercise = "<C-w>j", display = "Ctrl-W j", desc = "Window down" } },
 			}
 			local alts = kb.get_alternatives(exercise)
 			is_true(alts["<C-w>j"] ~= nil)
@@ -177,7 +177,7 @@ describe("keybinds", function()
 			vim.keymap.set("n", "gh", "<cmd>wincmd h<cr>", {})
 			local kb = fresh_keybinds()
 			local exercise = {
-				actions = { { action = "<C-w>h", display = "Ctrl-W h", desc = "Window left" } },
+				exercises = { { exercise = "<C-w>h", display = "Ctrl-W h", desc = "Window left" } },
 			}
 			local alts = kb.get_alternatives(exercise)
 			eq(2, #alts["<C-w>h"])
@@ -188,7 +188,7 @@ describe("keybinds", function()
 		it("does not count exercise action itself as alternative", function()
 			local kb = fresh_keybinds()
 			local exercise = {
-				actions = { { action = "<C-w>h", display = "Ctrl-W h", desc = "Window left" } },
+				exercises = { { exercise = "<C-w>h", display = "Ctrl-W h", desc = "Window left" } },
 			}
 			local alts = kb.get_alternatives(exercise)
 			eq(0, vim.tbl_count(alts))
@@ -198,7 +198,7 @@ describe("keybinds", function()
 			vim.keymap.set("n", "tn", "<cmd>tabnext<cr>", {})
 			local kb = fresh_keybinds()
 			local exercise = {
-				actions = { { action = "gt", display = "gt", desc = "Next tab" } },
+				exercises = { { exercise = "gt", display = "gt", desc = "Next tab" } },
 			}
 			local alts = kb.get_alternatives(exercise)
 			is_true(alts["gt"] ~= nil)

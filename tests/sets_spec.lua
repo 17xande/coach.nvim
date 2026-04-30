@@ -1,168 +1,80 @@
 local h = require("harness")
-local describe, it, eq, is_true, is_false = h.describe, h.it, h.eq, h.is_true, h.is_false
+local describe, it, eq, is_true = h.describe, h.it, h.eq, h.is_true
 
-local function fresh()
-	package.loaded["coach.exercises"] = nil
-	package.loaded["coach.sets"] = nil
-	package.loaded["coach.sources"] = nil
-	package.loaded["coach.builtin"] = nil
-	local sets = require("coach.sets")
-	sets._set_state_file(vim.fn.tempname() .. "_coach_sets_state.json")
-	return sets
-end
+local sources = require("coach.sources")
+local programs = require("coach.programs")
+programs._set_state_file(vim.fn.tempname() .. "_coach_state.json")
+programs.configure({ active = "user-manual/01-first-steps" })
 
---- Build a temp volume directory.
----@return string dir
-local function make_dir(volumes)
-	local dir = vim.fn.tempname() .. "_coach_vols"
-	vim.fn.mkdir(dir, "p")
-	for name, body in pairs(volumes) do
-		local f = assert(io.open(dir .. "/" .. name .. ".lua", "w"))
-		f:write(body)
-		f:close()
-	end
-	return dir
-end
+local sets = require("coach.sets")
 
-describe("sets", function()
-	describe("configure", function()
-		it("always includes the builtin set", function()
-			local sets = fresh()
-			sets.configure({})
-			local names = {}
-			for _, s in ipairs(sets.list()) do
-				table.insert(names, s.name)
-			end
-			eq("neovim-manual", names[1])
+describe("sets (runtime)", function()
+	describe("count", function()
+		it("reflects the active session's set count", function()
+			is_true(sets.count() > 0, "should have at least one set")
 		end)
+	end)
 
-		it("picks the first volume of the first set by default", function()
-			local sets = fresh()
-			sets.configure({})
-			local active = sets.get_active()
-			is_true(active ~= nil)
-			if not active then
+	describe("get", function()
+		it("returns the first set of the first builtin session", function()
+			local s = sets.get(1)
+			is_true(s ~= nil, "first set should exist")
+			if not s then
 				return
 			end
-			eq("neovim-manual", active.set)
-			eq("01-first-steps", active.volume)
+			eq("02.2", s.id)
+			eq("Inserting Text", s.title)
 		end)
 
-		it("honors active option as set/volume", function()
-			local sets = fresh()
-			sets.configure({ active = "neovim-manual/02-moving-around" })
-			local active = sets.get_active()
-			if not active then
-				error("no active")
+		it("returns the last set", function()
+			local s = sets.get(sets.count())
+			is_true(s ~= nil, "last set should exist")
+		end)
+
+		it("returns nil for out of bounds", function()
+			h.is_nil(sets.get(0))
+			h.is_nil(sets.get(sets.count() + 1))
+			h.is_nil(sets.get(-1))
+		end)
+	end)
+end)
+
+describe("builtin sessions", function()
+	local sessions = sources.load({ name = "user-manual" })
+
+	it("exposes more than one session", function()
+		is_true(#sessions > 1, "should have multiple sessions")
+	end)
+
+	local seen_ids = {}
+	for _, sess in ipairs(sessions) do
+		describe("session " .. sess.name, function()
+			it("has sets", function()
+				is_true(#sess.sets > 0)
+			end)
+			for _, s in ipairs(sess.sets) do
+				it("set " .. s.id .. " is structurally valid", function()
+					is_true(type(s.id) == "string" and #s.id > 0)
+					is_true(type(s.title) == "string" and #s.title > 0)
+					is_true(type(s.help_tag) == "string")
+					is_true(type(s.exercises) == "table" and #s.exercises > 0)
+					for _, e in ipairs(s.exercises) do
+						is_true(type(e.exercise) == "string" and #e.exercise > 0)
+						is_true(type(e.display) == "string" and #e.display > 0)
+						is_true(type(e.desc) == "string" and #e.desc > 0)
+					end
+				end)
 			end
-			eq("02-moving-around", active.volume)
 		end)
+	end
 
-		it("swaps exercises.list on activation", function()
-			local sets = fresh()
-			local exercises = require("coach.exercises")
-			eq(0, #exercises.list)
-			sets.configure({ active = "neovim-manual/02-moving-around" })
-			is_true(#exercises.list > 0)
-			eq("03.1", exercises.list[1].id)
-		end)
-
-		it("loads a local-dir set", function()
-			local dir = make_dir({
-				["01-foo"] = "return { { id='f.1', title='F', actions={ { action='w', display='w', desc='d' } } } }",
-				["02-bar"] = "return { { id='b.1', title='B', actions={ { action='e', display='e', desc='d' } } } }",
-			})
-			local sets = fresh()
-			sets.configure({ sets = { { name = "custom", source = dir } } })
-			local vols = sets.volumes("custom")
-			eq(2, #vols)
-			eq("01-foo", vols[1].name)
-		end)
-	end)
-
-	describe("switch", function()
-		it("changes the active volume and exercises.list", function()
-			local sets = fresh()
-			local exercises = require("coach.exercises")
-			sets.configure({})
-
-			local ok, err = sets.switch("neovim-manual", "02-moving-around")
-			is_true(ok, err)
-			eq("02-moving-around", sets.get_active().volume)
-			eq("03.1", exercises.list[1].id)
-		end)
-
-		it("defaults to the first volume if name omitted", function()
-			local sets = fresh()
-			sets.configure({})
-			sets.switch("neovim-manual", "02-moving-around")
-			local ok = sets.switch("neovim-manual", nil)
-			is_true(ok)
-			eq("01-first-steps", sets.get_active().volume)
-		end)
-
-		it("returns an error for unknown set", function()
-			local sets = fresh()
-			sets.configure({})
-			local ok, err = sets.switch("nope", nil)
-			is_false(ok)
-			is_true(type(err) == "string")
-		end)
-
-		it("returns an error for unknown volume", function()
-			local sets = fresh()
-			sets.configure({})
-			local ok, err = sets.switch("neovim-manual", "does-not-exist")
-			is_false(ok)
-			is_true(type(err) == "string")
-		end)
-
-		it("fires the _on_switch hook", function()
-			local sets = fresh()
-			sets.configure({})
-			local fired = nil
-			sets._on_switch = function(s, v)
-				fired = s .. "/" .. v
+	it("set IDs are globally unique across sessions", function()
+		for _, sess in ipairs(sessions) do
+			for _, s in ipairs(sess.sets) do
+				is_true(not seen_ids[s.id], "duplicate set id: " .. s.id)
+				seen_ids[s.id] = true
 			end
-			sets.switch("neovim-manual", "02-moving-around")
-			eq("neovim-manual/02-moving-around", fired)
-		end)
-	end)
-
-	describe("all_volume_pairs", function()
-		it("lists pairs across sets", function()
-			local sets = fresh()
-			sets.configure({})
-			local pairs_list = sets.all_volume_pairs()
-			is_true(#pairs_list > 1)
-			-- first pair should be the first builtin volume
-			eq("neovim-manual", pairs_list[1].set)
-			eq("01-first-steps", pairs_list[1].volume)
-		end)
-	end)
-
-	describe("active persistence", function()
-		it("saved state is reloaded on next configure", function()
-			local state_file = vim.fn.tempname() .. "_coach_persist.json"
-
-			package.loaded["coach.exercises"] = nil
-			package.loaded["coach.sets"] = nil
-			package.loaded["coach.sources"] = nil
-			package.loaded["coach.builtin"] = nil
-			local sets1 = require("coach.sets")
-			sets1._set_state_file(state_file)
-			sets1.configure({})
-			sets1.switch("neovim-manual", "03-making-changes")
-
-			package.loaded["coach.exercises"] = nil
-			package.loaded["coach.sets"] = nil
-			package.loaded["coach.sources"] = nil
-			package.loaded["coach.builtin"] = nil
-			local sets2 = require("coach.sets")
-			sets2._set_state_file(state_file)
-			sets2.configure({})
-			eq("03-making-changes", sets2.get_active().volume)
-		end)
+		end
 	end)
 end)
 

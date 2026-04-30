@@ -1,4 +1,4 @@
--- Floating window for displaying exercise progress
+-- Floating window for displaying set/exercise progress
 
 local M = {}
 
@@ -90,13 +90,13 @@ function M.set_message(msg)
 end
 
 --- Render the window contents
----@param exercise table Exercise definition
----@param counts table<string, number> Action counts
+---@param set table Set definition (one entry from a session)
+---@param counts table<string, number> Exercise counts
 ---@param required_reps number
----@param next_key string Keybind for next exercise
----@param shadowed? table<string, any> Set of shadowed action keys
----@param alternatives? table<string, string[]> Alternative keybind displays per action
-function M.render(exercise, counts, required_reps, next_key, shadowed, alternatives)
+---@param next_key string Keybind for next set
+---@param shadowed? table<string, any> Map of shadowed exercise keys
+---@param alternatives? table<string, string[]> Alternative keybind displays per exercise
+function M.render(set, counts, required_reps, next_key, shadowed, alternatives)
 	if not buf or not vim.api.nvim_buf_is_valid(buf) then
 		return
 	end
@@ -108,8 +108,8 @@ function M.render(exercise, counts, required_reps, next_key, shadowed, alternati
 	local highlights = {} -- { line, col_start, col_end, hl_group }
 
 	-- Help tag reference
-	if exercise.help_tag then
-		local ref = "  :h " .. exercise.help_tag
+	if set.help_tag then
+		local ref = "  :h " .. set.help_tag
 		table.insert(lines, ref)
 		table.insert(highlights, { #lines - 1, 2, #ref, HL_HINT })
 		table.insert(lines, "")
@@ -120,28 +120,28 @@ function M.render(exercise, counts, required_reps, next_key, shadowed, alternati
 	-- Compute display and description column widths dynamically
 	local display_width = 0
 	local desc_width = 0
-	for _, a in ipairs(exercise.actions) do
-		local d = a.display
-		if not shadowed[a.action] and alternatives[a.action] and #alternatives[a.action] > 0 then
-			d = d .. " / " .. table.concat(alternatives[a.action], " / ")
+	for _, e in ipairs(set.exercises) do
+		local d = e.display
+		if not shadowed[e.exercise] and alternatives[e.exercise] and #alternatives[e.exercise] > 0 then
+			d = d .. " / " .. table.concat(alternatives[e.exercise], " / ")
 		end
 		display_width = math.max(display_width, #d + 2)
-		desc_width = math.max(desc_width, #a.desc + 2)
+		desc_width = math.max(desc_width, #e.desc + 2)
 	end
 
-	-- Action lines
+	-- Exercise lines
 	local all_complete = true
-	for _, a in ipairs(exercise.actions) do
+	for _, e in ipairs(set.exercises) do
 		-- Build display string with alternatives
-		local display_text = a.display
-		if not shadowed[a.action] and alternatives[a.action] and #alternatives[a.action] > 0 then
-			display_text = display_text .. " / " .. table.concat(alternatives[a.action], " / ")
+		local display_text = e.display
+		if not shadowed[e.exercise] and alternatives[e.exercise] and #alternatives[e.exercise] > 0 then
+			display_text = display_text .. " / " .. table.concat(alternatives[e.exercise], " / ")
 		end
 		local display = string.format("%-" .. display_width .. "s", display_text)
-		local desc_str = string.format("%-" .. desc_width .. "s", a.desc)
+		local desc_str = string.format("%-" .. desc_width .. "s", e.desc)
 		local line_idx = #lines
 
-		if shadowed[a.action] then
+		if shadowed[e.exercise] then
 			-- Shadowed: show a dim indicator instead of progress
 			local indicator = "\u{2014} shadowed"
 			local line = "  " .. display .. desc_str .. indicator
@@ -154,7 +154,7 @@ function M.render(exercise, counts, required_reps, next_key, shadowed, alternati
 			col = col + #desc_str
 			table.insert(highlights, { line_idx, col, col + #indicator, HL_SHADOWED })
 		else
-			local count = math.min(counts[a.action] or 0, required_reps)
+			local count = math.min(counts[e.exercise] or 0, required_reps)
 			local complete = count >= required_reps
 			if not complete then
 				all_complete = false
@@ -169,7 +169,7 @@ function M.render(exercise, counts, required_reps, next_key, shadowed, alternati
 
 			-- Highlights for display (base key + alternatives)
 			local col = 2
-			local base_len = #a.display
+			local base_len = #e.display
 			table.insert(highlights, { line_idx, col, col + base_len, HL_ACTION })
 			if #display_text > base_len then
 				table.insert(highlights, { line_idx, col + base_len, col + #display_text, HL_HINT })
@@ -192,11 +192,11 @@ function M.render(exercise, counts, required_reps, next_key, shadowed, alternati
 	-- Completion message
 	if all_complete then
 		table.insert(lines, "")
-		local msg = "  Exercise Complete!"
+		local msg = "  Set Complete!"
 		table.insert(lines, msg)
 		table.insert(highlights, { #lines - 1, 2, #msg, HL_COMPLETE })
 
-		local hint = "  " .. next_key .. "  next exercise"
+		local hint = "  " .. next_key .. "  next set"
 		table.insert(lines, hint)
 		table.insert(highlights, { #lines - 1, 2, #hint, HL_HINT })
 	end
@@ -233,7 +233,7 @@ function M.render(exercise, counts, required_reps, next_key, shadowed, alternati
 				width = w
 			end
 		end
-		local title = " " .. exercise.title .. " (" .. exercise.id .. ") "
+		local title = " " .. set.title .. " (" .. set.id .. ") "
 		width = math.max(width + 2, vim.fn.strdisplaywidth(title) + 2)
 
 		vim.api.nvim_win_set_config(win, {
@@ -249,7 +249,7 @@ function M.render(exercise, counts, required_reps, next_key, shadowed, alternati
 end
 
 --- Render the welcome screen in the floating window
----@param next_key string Keybind for starting the first exercise
+---@param next_key string Keybind for starting the first set
 function M.render_welcome(next_key)
 	if not buf or not vim.api.nvim_buf_is_valid(buf) then
 		return
@@ -266,7 +266,7 @@ function M.render_welcome(next_key)
 	table.insert(lines, "")
 
 	-- Description
-	local desc1 = "  Learn Neovim keybindings through exercises"
+	local desc1 = "  Learn Neovim keybindings through sessions"
 	local desc2 = "  from the user manual."
 	table.insert(lines, desc1)
 	table.insert(highlights, { #lines - 1, 2, #desc1, HL_DESC })
@@ -277,7 +277,7 @@ function M.render_welcome(next_key)
 
 	-- Bullet points
 	local bullets = {
-		"  \u{2022} Track actions in your workflow",
+		"  \u{2022} Track exercises in your workflow",
 		"  \u{2022} Complete reps to advance",
 	}
 	for _, b in ipairs(bullets) do
@@ -288,7 +288,7 @@ function M.render_welcome(next_key)
 	table.insert(lines, "")
 
 	-- Keybind hint
-	local hint = "  " .. next_key .. "  begin first exercise"
+	local hint = "  " .. next_key .. "  begin first set"
 	table.insert(lines, hint)
 	table.insert(highlights, { #lines - 1, 2, #hint, HL_HINT })
 

@@ -1,6 +1,6 @@
 -- Bridge to track-action.nvim
 
-local exercises = require("coach.exercises")
+local sets = require("coach.sets")
 local keybinds = require("coach.keybinds")
 local log = require("coach.log")
 local progress = require("coach.progress")
@@ -19,9 +19,9 @@ local COOLDOWN = 3
 ---@type string[]
 local recent_actions = {}
 
---- Cached reverse-alternatives map for the current exercise.
---- Maps formatted-display alternative (e.g. "<leader>|") → canonical action (e.g. "<C-w>v").
---- Invalidated whenever the exercise id changes.
+--- Cached reverse-alternatives map for the current set.
+--- Maps formatted-display alternative (e.g. "<leader>|") → canonical exercise (e.g. "<C-w>v").
+--- Invalidated whenever the set id changes.
 ---@type { id: string, reverse: table<string, string> }|nil
 local alt_cache = nil
 
@@ -61,7 +61,7 @@ end
 --- falling back to the raw action string from track-action.
 ---@param action string Action string from track-action callback
 ---@param data table|nil Data table from track-action (may contain .native)
----@return string The action string to match against exercise actions
+---@return string The action string to match against exercises
 function M.resolve_match_action(action, data)
 	if data and data.native then
 		return data.native
@@ -69,19 +69,19 @@ function M.resolve_match_action(action, data)
 	return action
 end
 
---- Build a lookup set of actions for the current exercise
+--- Build a lookup set of exercises for the current set
 ---@return table<string, boolean>
-local function current_action_set()
-	local exercise = exercises.get(progress.get_exercise_index())
-	if not exercise then
+local function current_exercise_set()
+	local s = sets.get(progress.get_set_index())
+	if not s then
 		return {}
 	end
 
-	local set = {}
-	for _, a in ipairs(exercise.actions) do
-		set[a.action] = true
+	local out = {}
+	for _, e in ipairs(s.exercises) do
+		out[e.exercise] = true
 	end
-	return set
+	return out
 end
 
 --- Parse a trigger string like "[4]l" or "<Right>" into (action, threshold).
@@ -96,31 +96,31 @@ function M._parse_trigger(trigger)
 	return trigger, 1
 end
 
---- Compiled negative rule for the active exercise.
+--- Compiled negative rule for the active set.
 --- @class CompiledRule
 --- @field triggers table<string, number>  -- action → threshold
---- @field decrement string[]               -- positive actions to decrement on fire
+--- @field decrement string[]               -- positive exercises to decrement on fire
 --- @field message string|nil               -- optional UI message
 --- @field streak { action: string, count: number }  -- mutable per-rule runtime state
 
---- Cache of compiled rules for the current exercise.
+--- Cache of compiled rules for the current set.
 ---@type { id: string, rules: CompiledRule[] }|nil
 local rules_cache = nil
 
---- Build (or return cached) compiled rules for the active exercise.
+--- Build (or return cached) compiled rules for the active set.
 ---@return CompiledRule[]
 local function compiled_rules()
-	local exercise = exercises.get(progress.get_exercise_index())
-	if not exercise then
+	local s = sets.get(progress.get_set_index())
+	if not s then
 		return {}
 	end
-	if rules_cache and rules_cache.id == exercise.id then
+	if rules_cache and rules_cache.id == s.id then
 		return rules_cache.rules
 	end
 
 	local rules = {}
-	if exercise.negatives then
-		for _, raw in ipairs(exercise.negatives) do
+	if s.negatives then
+		for _, raw in ipairs(s.negatives) do
 			local triggers = {}
 			for _, t in ipairs(raw.triggers or {}) do
 				local act, threshold = M._parse_trigger(t)
@@ -134,11 +134,11 @@ local function compiled_rules()
 			})
 		end
 	end
-	rules_cache = { id = exercise.id, rules = rules }
+	rules_cache = { id = s.id, rules = rules }
 	return rules
 end
 
---- Reset every rule's streak (called on exercise change, tracker start/stop).
+--- Reset every rule's streak (called on set change, tracker start/stop).
 local function reset_negative_streaks()
 	if not rules_cache then
 		return
@@ -148,7 +148,7 @@ local function reset_negative_streaks()
 	end
 end
 
---- Drop the rules cache so the next call rebuilds against the current exercise.
+--- Drop the rules cache so the next call rebuilds against the current set.
 local function invalidate_rules_cache()
 	rules_cache = nil
 end
@@ -185,9 +185,9 @@ end
 function M._reset_rules_cache()
 	rules_cache = nil
 end
-function M._compile_rules_for(exercise)
+function M._compile_rules_for(set)
 	local rules = {}
-	for _, raw in ipairs(exercise.negatives or {}) do
+	for _, raw in ipairs(set.negatives or {}) do
 		local triggers = {}
 		for _, t in ipairs(raw.triggers or {}) do
 			local act, threshold = M._parse_trigger(t)
@@ -203,22 +203,22 @@ function M._compile_rules_for(exercise)
 	return rules
 end
 
---- Look up `action` in the alternatives of `exercise`.
---- Returns the canonical exercise action if `action` is a known alternative, else nil.
---- Result is cached per exercise id.
+--- Look up `action` in the alternatives of `set`.
+--- Returns the canonical exercise if `action` is a known alternative, else nil.
+--- Result is cached per set id.
 ---@param action string
----@param exercise table
+---@param set table
 ---@return string|nil
-local function resolve_alternative(action, exercise)
-	if not alt_cache or alt_cache.id ~= exercise.id then
-		local forward = keybinds.get_alternatives(exercise)
+local function resolve_alternative(action, set)
+	if not alt_cache or alt_cache.id ~= set.id then
+		local forward = keybinds.get_alternatives(set)
 		local reverse = {}
 		for canonical, display_list in pairs(forward) do
 			for _, disp in ipairs(display_list) do
 				reverse[disp] = canonical
 			end
 		end
-		alt_cache = { id = exercise.id, reverse = reverse }
+		alt_cache = { id = set.id, reverse = reverse }
 		invalidate_rules_cache()
 	end
 	return alt_cache.reverse[action]
@@ -228,14 +228,14 @@ end
 ---@param action string
 ---@param data table
 local function on_action(action, data)
-	local action_set = current_action_set()
+	local exercise_set = current_exercise_set()
 	local match_action = M.resolve_match_action(action, data)
 
 	log.debug("on_action", { action = action, native = data and data.native, match = match_action })
 
-	-- Negative rules: a "bad habit" key the exercise wants to punish.
+	-- Negative rules: a "bad habit" key the set wants to punish.
 	-- Each rule lists `triggers` (with optional `[N]` consecutive-press prefix),
-	-- `decrement` (which positive actions get decremented when it fires), and
+	-- `decrement` (which positive exercises get decremented when it fires), and
 	-- an optional `message`. The cooldown ring buffer does NOT apply here —
 	-- the per-trigger threshold replaces that role, and decrement is floored at 0.
 	local rules = compiled_rules()
@@ -271,13 +271,13 @@ local function on_action(action, data)
 			or ("Bad habit: " .. match_action .. " — progress decremented")
 		vim.schedule(function()
 			if window.is_open() then
-				local ex = exercises.get(progress.get_exercise_index())
-				if ex then
-					local sh = keybinds.get_shadowed(ex)
-					local alts = keybinds.get_alternatives(ex)
-					local reps = ex.required_reps or progress.get_required_reps()
+				local s = sets.get(progress.get_set_index())
+				if s then
+					local sh = keybinds.get_shadowed(s)
+					local alts = keybinds.get_alternatives(s)
+					local reps = s.required_reps or progress.get_required_reps()
 					window.set_message(last_message)
-					window.render(ex, progress.get_counts(), reps, next_key, sh, alts)
+					window.render(s, progress.get_counts(), reps, next_key, sh, alts)
 				end
 			end
 		end)
@@ -285,22 +285,22 @@ local function on_action(action, data)
 	end
 
 	-- Track all actions in the recent history for cooldown purposes,
-	-- but only process actions that belong to the current exercise.
-	if not action_set[match_action] then
-		-- Check if the action is an alternative keybinding for an exercise action
+	-- but only process actions that belong to the current set.
+	if not exercise_set[match_action] then
+		-- Check if the action is an alternative keybinding for an exercise
 		-- (e.g. <leader>| mapped to <C-w>v should count toward <C-w>v).
-		local exercise = exercises.get(progress.get_exercise_index())
-		local alt = exercise and resolve_alternative(match_action, exercise)
+		local s = sets.get(progress.get_set_index())
+		local alt = s and resolve_alternative(match_action, s)
 		if not alt then
-			log.debug("on_action: not in exercise, skip")
+			log.debug("on_action: not in set, skip")
 			push_recent(action)
 			return
 		end
 		match_action = alt
 	end
 
-	if progress.is_action_complete(match_action) then
-		log.debug("on_action: action already complete, skip")
+	if progress.is_exercise_complete(match_action) then
+		log.debug("on_action: exercise already complete, skip")
 		push_recent(action)
 		return
 	end
@@ -312,12 +312,12 @@ local function on_action(action, data)
 		vim.schedule(function()
 			if window.is_open() then
 				window.set_message("Repeated actions don't count")
-				local exercise = exercises.get(progress.get_exercise_index())
-				if exercise then
-					local shadowed = keybinds.get_shadowed(exercise)
-					local alternatives = keybinds.get_alternatives(exercise)
-					local reps = exercise.required_reps or progress.get_required_reps()
-					window.render(exercise, progress.get_counts(), reps, next_key, shadowed, alternatives)
+				local s = sets.get(progress.get_set_index())
+				if s then
+					local shadowed = keybinds.get_shadowed(s)
+					local alternatives = keybinds.get_alternatives(s)
+					local reps = s.required_reps or progress.get_required_reps()
+					window.render(s, progress.get_counts(), reps, next_key, shadowed, alternatives)
 				end
 			end
 		end)
@@ -326,31 +326,31 @@ local function on_action(action, data)
 
 	push_recent(action)
 
-	local exercise = exercises.get(progress.get_exercise_index())
-	local shadowed = exercise and keybinds.get_shadowed(exercise) or {}
+	local s = sets.get(progress.get_set_index())
+	local shadowed = s and keybinds.get_shadowed(s) or {}
 
-	local was_complete = progress.is_exercise_complete(shadowed)
+	local was_complete = progress.is_set_complete(shadowed)
 	progress.increment(match_action)
-	local now_complete = progress.is_exercise_complete(shadowed)
+	local now_complete = progress.is_set_complete(shadowed)
 
 	log.debug("on_action: counted", { match = match_action, counts = progress.get_counts(), complete = now_complete })
 
 	-- Update window if open
 	vim.schedule(function()
 		if window.is_open() then
-			local ex = exercises.get(progress.get_exercise_index())
-			if ex then
-				local sh = keybinds.get_shadowed(ex)
-				local alts = keybinds.get_alternatives(ex)
-				local reps = ex.required_reps or progress.get_required_reps()
-				window.render(ex, progress.get_counts(), reps, next_key, sh, alts)
+			local cur = sets.get(progress.get_set_index())
+			if cur then
+				local sh = keybinds.get_shadowed(cur)
+				local alts = keybinds.get_alternatives(cur)
+				local reps = cur.required_reps or progress.get_required_reps()
+				window.render(cur, progress.get_counts(), reps, next_key, sh, alts)
 			end
 		end
 
-		-- Notify on exercise completion
+		-- Notify on set completion
 		if not was_complete and now_complete then
 			if not window.is_open() then
-				vim.notify("coach.nvim: Exercise complete!", vim.log.levels.INFO)
+				vim.notify("coach.nvim: Set complete!", vim.log.levels.INFO)
 			end
 			progress.save()
 		end

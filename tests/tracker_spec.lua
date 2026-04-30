@@ -389,12 +389,12 @@ end)
 
 describe("resolve_alternative", function()
 	-- Test that alternative keybindings (e.g. <leader>| -> <C-w>v) are resolved
-	-- to the canonical exercise action for counting purposes.
+	-- to the canonical exercise for counting purposes.
 
-	local exercise = {
+	local set = {
 		id = "test.alt",
 		title = "T",
-		actions = { { action = "<C-w>v", display = "Ctrl-W v", desc = "Split" } },
+		exercises = { { exercise = "<C-w>v", display = "Ctrl-W v", desc = "Split" } },
 	}
 
 	it("get_alternatives finds a direct-key RHS mapping as an alternative", function()
@@ -405,7 +405,7 @@ describe("resolve_alternative", function()
 
 		package.loaded["coach.keybinds"] = nil
 		local keybinds = require("coach.keybinds")
-		local alts = keybinds.get_alternatives(exercise)
+		local alts = keybinds.get_alternatives(set)
 		local found = alts["<C-w>v"] and vim.tbl_contains(alts["<C-w>v"], "<leader>X")
 		is_true(found == true, "expected <leader>X in alternatives for <C-w>v")
 
@@ -416,7 +416,7 @@ describe("resolve_alternative", function()
 	it("get_alternatives does not list unmapped keys", function()
 		package.loaded["coach.keybinds"] = nil
 		local keybinds = require("coach.keybinds")
-		local alts = keybinds.get_alternatives(exercise)
+		local alts = keybinds.get_alternatives(set)
 		local found = alts["<C-w>v"] and vim.tbl_contains(alts["<C-w>v"], "<leader>NOPE_XYZ")
 		is_true(not found, "unmapped key should not appear as alternative")
 	end)

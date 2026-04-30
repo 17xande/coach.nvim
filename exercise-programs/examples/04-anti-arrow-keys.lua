@@ -1,7 +1,7 @@
--- Volume: Anti-Patterns — punish bad habits with negative rules.
+-- Session: Anti-Patterns — punish bad habits with negative rules.
 --
--- Each chapter declares positive `actions` (what you want to practice) and
--- optional `negatives` (rules that decrement specific positive actions when
+-- Each set declares positive `exercises` (what you want to practice) and
+-- optional `negatives` (rules that decrement specific positive exercises when
 -- their triggers fire). Each rule has the shape:
 --
 --   {
@@ -29,12 +29,12 @@ return {
 		id = "anti.word",
 		title = "Word Movement (no h/l spam!)",
 		help_tag = "word-motions",
-		actions = {
-			{ action = "w", display = "w", desc = "Word forward" },
-			{ action = "W", display = "W", desc = "WORD forward" },
-			{ action = "b", display = "b", desc = "Word backward" },
-			{ action = "B", display = "B", desc = "WORD backward" },
-			{ action = "e", display = "e", desc = "Word end" },
+		exercises = {
+			{ exercise = "w", display = "w", desc = "Word forward" },
+			{ exercise = "W", display = "W", desc = "WORD forward" },
+			{ exercise = "b", display = "b", desc = "Word backward" },
+			{ exercise = "B", display = "B", desc = "WORD backward" },
+			{ exercise = "e", display = "e", desc = "Word end" },
 		},
 		negatives = {
 			{
@@ -54,10 +54,10 @@ return {
 		id = "anti.line",
 		title = "Line Jumps (no Home/End)",
 		help_tag = "line-motions",
-		actions = {
-			{ action = "^", display = "^", desc = "First non-blank" },
-			{ action = "$", display = "$", desc = "Line end" },
-			{ action = "f", display = "f{c}", desc = "Find char" },
+		exercises = {
+			{ exercise = "^", display = "^", desc = "First non-blank" },
+			{ exercise = "$", display = "$", desc = "Line end" },
+			{ exercise = "f", display = "f{c}", desc = "Find char" },
 		},
 		negatives = {
 			{

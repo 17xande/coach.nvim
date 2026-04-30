@@ -1,17 +1,17 @@
 NVIM := nvim --headless -u tests/minimal_init.lua
 
-.PHONY: test test-exercises test-progress test-window test-tracker test-keybinds test-index test-sources test-sets
+.PHONY: test test-sets test-progress test-window test-tracker test-keybinds test-index test-sources test-programs
 
-test: test-exercises test-progress test-window test-tracker test-keybinds test-index test-sources test-sets
+test: test-sets test-progress test-window test-tracker test-keybinds test-index test-sources test-programs
 
 test-sources:
 	$(NVIM) -c "luafile tests/sources_spec.lua" -c "qa"
 
+test-programs:
+	$(NVIM) -c "luafile tests/programs_spec.lua" -c "qa"
+
 test-sets:
 	$(NVIM) -c "luafile tests/sets_spec.lua" -c "qa"
-
-test-exercises:
-	$(NVIM) -c "luafile tests/exercises_spec.lua" -c "qa"
 
 test-progress:
 	$(NVIM) -c "luafile tests/progress_spec.lua" -c "qa"

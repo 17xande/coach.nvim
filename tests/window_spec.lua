@@ -3,21 +3,21 @@ local describe, it, eq, is_true, is_false = h.describe, h.it, h.eq, h.is_true, h
 
 local window = require("coach.window")
 
-local sample_exercise = {
+local sample_set = {
 	id = "02.3",
 	title = "Moving Around",
 	help_tag = "02.3",
-	actions = {
-		{ action = "h", display = "h", desc = "Move left" },
-		{ action = "j", display = "j", desc = "Move down" },
+	exercises = {
+		{ exercise = "h", display = "h", desc = "Move left" },
+		{ exercise = "j", display = "j", desc = "Move down" },
 	},
 }
 
-local sample_exercise_no_help = {
+local sample_set_no_help = {
 	id = "99.1",
 	title = "No Help Tag",
-	actions = {
-		{ action = "x", display = "x", desc = "Test" },
+	exercises = {
+		{ exercise = "x", display = "x", desc = "Test" },
 	},
 }
 
@@ -74,28 +74,28 @@ describe("window", function()
 	describe("render", function()
 		it("renders without error on empty counts", function()
 			window.open()
-			window.render(sample_exercise, {}, 20, "<leader>kn")
+			window.render(sample_set, {}, 20, "<leader>kn")
 			is_true(window.is_open())
 			window.close()
 		end)
 
 		it("renders with partial counts", function()
 			window.open()
-			window.render(sample_exercise, { h = 5, j = 10 }, 20, "<leader>kn")
+			window.render(sample_set, { h = 5, j = 10 }, 20, "<leader>kn")
 			is_true(window.is_open())
 			window.close()
 		end)
 
 		it("renders completed exercise", function()
 			window.open()
-			window.render(sample_exercise, { h = 20, j = 20 }, 20, "<leader>kn")
+			window.render(sample_set, { h = 20, j = 20 }, 20, "<leader>kn")
 			is_true(window.is_open())
 			window.close()
 		end)
 
 		it("renders exercise without help_tag", function()
 			window.open()
-			window.render(sample_exercise_no_help, {}, 20, "<leader>kn")
+			window.render(sample_set_no_help, {}, 20, "<leader>kn")
 			is_true(window.is_open())
 			window.close()
 		end)
@@ -103,14 +103,14 @@ describe("window", function()
 		it("does not crash when window is closed", function()
 			window.close()
 			-- should silently do nothing
-			window.render(sample_exercise, {}, 20, "<leader>kn")
+			window.render(sample_set, {}, 20, "<leader>kn")
 			is_false(window.is_open())
 		end)
 
 		it("renders counts clamped to required_reps", function()
 			window.open()
 			-- count exceeds required_reps, should not crash
-			window.render(sample_exercise, { h = 999, j = 999 }, 20, "<leader>kn")
+			window.render(sample_set, { h = 999, j = 999 }, 20, "<leader>kn")
 			is_true(window.is_open())
 			window.close()
 		end)
@@ -120,7 +120,7 @@ describe("window", function()
 		it("renders shadowed action without crash", function()
 			window.open()
 			local shadowed = { ["h"] = "Prev Buffer" }
-			window.render(sample_exercise, {}, 20, "<leader>kn", shadowed)
+			window.render(sample_set, {}, 20, "<leader>kn", shadowed)
 			is_true(window.is_open())
 			window.close()
 		end)
@@ -128,7 +128,7 @@ describe("window", function()
 		it("renders all-shadowed exercise (vacuously complete)", function()
 			window.open()
 			local shadowed = { ["h"] = true, ["j"] = true }
-			window.render(sample_exercise, {}, 20, "<leader>kn", shadowed)
+			window.render(sample_set, {}, 20, "<leader>kn", shadowed)
 			is_true(window.is_open())
 			window.close()
 		end)
@@ -136,14 +136,14 @@ describe("window", function()
 		it("renders mix of shadowed and normal actions", function()
 			window.open()
 			local shadowed = { ["h"] = "Mapped away" }
-			window.render(sample_exercise, { j = 10 }, 20, "<leader>kn", shadowed)
+			window.render(sample_set, { j = 10 }, 20, "<leader>kn", shadowed)
 			is_true(window.is_open())
 			window.close()
 		end)
 
 		it("empty shadowed table behaves like no shadowed", function()
 			window.open()
-			window.render(sample_exercise, { h = 5, j = 10 }, 20, "<leader>kn", {})
+			window.render(sample_set, { h = 5, j = 10 }, 20, "<leader>kn", {})
 			is_true(window.is_open())
 			window.close()
 		end)
@@ -153,14 +153,14 @@ describe("window", function()
 		it("renders with alternatives without crash", function()
 			window.open()
 			local alts = { ["h"] = { "Ctrl-H" } }
-			window.render(sample_exercise, { h = 5 }, 20, "<leader>kn", {}, alts)
+			window.render(sample_set, { h = 5 }, 20, "<leader>kn", {}, alts)
 			is_true(window.is_open())
 			window.close()
 		end)
 
 		it("renders with empty alternatives table", function()
 			window.open()
-			window.render(sample_exercise, {}, 20, "<leader>kn", {}, {})
+			window.render(sample_set, {}, 20, "<leader>kn", {}, {})
 			is_true(window.is_open())
 			window.close()
 		end)
@@ -169,7 +169,7 @@ describe("window", function()
 			window.open()
 			local shadowed = { ["h"] = true }
 			local alts = { ["j"] = { "Ctrl-J" } }
-			window.render(sample_exercise, { j = 5 }, 20, "<leader>kn", shadowed, alts)
+			window.render(sample_set, { j = 5 }, 20, "<leader>kn", shadowed, alts)
 			is_true(window.is_open())
 			window.close()
 		end)
@@ -179,7 +179,7 @@ describe("window", function()
 		it("does not crash", function()
 			window.open()
 			window.set_message("Test message")
-			window.render(sample_exercise, {}, 20, "<leader>kn")
+			window.render(sample_set, {}, 20, "<leader>kn")
 			is_true(window.is_open())
 			window.close()
 		end)

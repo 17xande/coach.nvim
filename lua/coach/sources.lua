@@ -1,8 +1,8 @@
--- Resolve a set descriptor to a list of volumes.
+-- Resolve a program descriptor to a list of sessions.
 -- A "source" is one of:
---   nil / "builtin"           -> the builtin Neovim-manual volumes
---   "/path/to/dir" / "~/..."  -> every *.lua file in the directory is a volume
---   "github:owner/repo[@ref]" -> clone to cache; load volumes from exercises/*.lua
+--   nil / "builtin"           -> the builtin Neovim-manual sessions
+--   "/path/to/dir" / "~/..."  -> every *.lua file in the directory is a session
+--   "github:owner/repo[@ref]" -> clone to cache; load sessions from *.lua files
 --
 -- TODO: raw https://.../file.lua single-file source.
 
@@ -10,11 +10,11 @@ local builtin = require("coach.builtin")
 
 local M = {}
 
---- Directory where cloned github sets live.
----@param set_name string
+--- Directory where cloned github programs live.
+---@param program_name string
 ---@return string
-function M.cache_dir(set_name)
-	return vim.fn.stdpath("data") .. "/coach/sets/" .. set_name
+function M.cache_dir(program_name)
+	return vim.fn.stdpath("data") .. "/coach/programs/" .. program_name
 end
 
 ---@param source string|nil
@@ -44,29 +44,29 @@ end
 
 M.parse_github = parse_github
 
---- Validate a chapter table. Returns true if it has the required fields.
----@param ch any
+--- Validate a set table. Returns true if it has the required fields.
+---@param s any
 ---@return boolean
-local function valid_chapter(ch)
-	if type(ch) ~= "table" then
+local function valid_set(s)
+	if type(s) ~= "table" then
 		return false
 	end
-	if type(ch.id) ~= "string" or #ch.id == 0 then
+	if type(s.id) ~= "string" or #s.id == 0 then
 		return false
 	end
-	if type(ch.title) ~= "string" or #ch.title == 0 then
+	if type(s.title) ~= "string" or #s.title == 0 then
 		return false
 	end
-	if type(ch.actions) ~= "table" or #ch.actions == 0 then
+	if type(s.exercises) ~= "table" or #s.exercises == 0 then
 		return false
 	end
-	for _, a in ipairs(ch.actions) do
+	for _, e in ipairs(s.exercises) do
 		if
-			type(a) ~= "table"
-			or type(a.action) ~= "string"
-			or #a.action == 0
-			or type(a.display) ~= "string"
-			or type(a.desc) ~= "string"
+			type(e) ~= "table"
+			or type(e.exercise) ~= "string"
+			or #e.exercise == 0
+			or type(e.display) ~= "string"
+			or type(e.desc) ~= "string"
 		then
 			return false
 		end
@@ -74,38 +74,38 @@ local function valid_chapter(ch)
 	return true
 end
 
-M.valid_chapter = valid_chapter
+M.valid_set = valid_set
 
---- Load one volume file. Returns the (filtered) chapter list or nil on failure.
+--- Load one session file. Returns the (filtered) set list or nil on failure.
 ---@param path string
 ---@return table[]|nil
-local function load_volume_file(path)
+local function load_session_file(path)
 	local ok, result = pcall(dofile, path)
 	if not ok or type(result) ~= "table" then
-		vim.notify("coach.nvim: failed to load volume " .. path, vim.log.levels.WARN)
+		vim.notify("coach.nvim: failed to load session " .. path, vim.log.levels.WARN)
 		return nil
 	end
-	local chapters = {}
-	for _, ch in ipairs(result) do
-		if valid_chapter(ch) then
-			table.insert(chapters, ch)
+	local sets_list = {}
+	for _, s in ipairs(result) do
+		if valid_set(s) then
+			table.insert(sets_list, s)
 		else
 			vim.notify(
-				"coach.nvim: skipped invalid chapter in " .. path .. ": " .. vim.inspect(ch and ch.id or "?"),
+				"coach.nvim: skipped invalid set in " .. path .. ": " .. vim.inspect(s and s.id or "?"),
 				vim.log.levels.WARN
 			)
 		end
 	end
-	if #chapters == 0 then
+	if #sets_list == 0 then
 		return nil
 	end
-	return chapters
+	return sets_list
 end
 
---- Volume name derived from a file path (stem, no extension).
+--- Session name derived from a file path (stem, no extension).
 ---@param path string
 ---@return string
-local function volume_name_from_path(path)
+local function session_name_from_path(path)
 	local base = vim.fn.fnamemodify(path, ":t:r")
 	return base
 end
@@ -168,61 +168,61 @@ end
 
 M._list_lua_files = list_lua_files
 
---- Resolve a set to a list of volumes.
---- For github sets, reads from the cache dir; if not cached yet returns empty.
----@param set { name: string, source?: string }
----@return { name: string, title?: string, chapters: table[] }[]
-function M.load(set)
-	local k = kind(set.source)
+--- Resolve a program to a list of sessions.
+--- For github programs, reads from the cache dir; if not cached yet returns empty.
+---@param program { name: string, source?: string }
+---@return { name: string, title?: string, sets: table[] }[]
+function M.load(program)
+	local k = kind(program.source)
 
 	local lua_files
 	if k == "builtin" then
-		local dir = builtin.exercises_dir()
+		local dir = builtin.default_program_dir()
 		lua_files = dir and list_lua_files(dir) or {}
 	elseif k == "github" then
 		-- Scan root + all immediate subdirs so any repo layout works.
-		lua_files = list_lua_files_deep(M.cache_dir(set.name))
+		lua_files = list_lua_files_deep(M.cache_dir(program.name))
 	else
-		lua_files = list_lua_files(vim.fn.expand(set.source))
+		lua_files = list_lua_files(vim.fn.expand(program.source))
 	end
 
-	local volumes = {}
+	local sessions = {}
 	for _, path in ipairs(lua_files) do
-		local chapters = load_volume_file(path)
-		if chapters then
-			table.insert(volumes, {
-				name = volume_name_from_path(path),
-				chapters = chapters,
+		local sets_list = load_session_file(path)
+		if sets_list then
+			table.insert(sessions, {
+				name = session_name_from_path(path),
+				sets = sets_list,
 			})
 		end
 	end
-	return volumes
+	return sessions
 end
 
---- Whether a set's content is available on disk (always true for builtin/dir).
----@param set { name: string, source?: string }
+--- Whether a program's content is available on disk (always true for builtin/dir).
+---@param program { name: string, source?: string }
 ---@return boolean
-function M.is_ready(set)
-	local k = kind(set.source)
+function M.is_ready(program)
+	local k = kind(program.source)
 	if k == "builtin" then
-		return builtin.exercises_dir() ~= nil
+		return builtin.default_program_dir() ~= nil
 	end
 	if k == "dir" then
-		return vim.fn.isdirectory(vim.fn.expand(set.source)) == 1
+		return vim.fn.isdirectory(vim.fn.expand(program.source)) == 1
 	end
 	-- github
-	return vim.fn.isdirectory(M.cache_dir(set.name)) == 1
+	return vim.fn.isdirectory(M.cache_dir(program.name)) == 1
 end
 
 --- Async git clone into the cache dir.
----@param set { name: string, source: string }
+---@param program { name: string, source: string }
 ---@param cb fun(ok: boolean, msg: string|nil)
-function M.fetch(set, cb)
-	if kind(set.source) ~= "github" then
+function M.fetch(program, cb)
+	if kind(program.source) ~= "github" then
 		cb(true, nil)
 		return
 	end
-	if M.is_ready(set) then
+	if M.is_ready(program) then
 		cb(true, nil)
 		return
 	end
@@ -231,9 +231,9 @@ function M.fetch(set, cb)
 		return
 	end
 
-	local repo, ref = parse_github(set.source)
+	local repo, ref = parse_github(program.source)
 	local url = "https://github.com/" .. repo .. ".git"
-	local dest = M.cache_dir(set.name)
+	local dest = M.cache_dir(program.name)
 	local parent = vim.fn.fnamemodify(dest, ":h")
 	vim.fn.mkdir(parent, "p")
 
@@ -257,19 +257,19 @@ function M.fetch(set, cb)
 end
 
 --- Async `git pull` in the cache dir.
----@param set { name: string, source: string }
+---@param program { name: string, source: string }
 ---@param cb fun(ok: boolean, msg: string|nil)
-function M.update(set, cb)
-	if kind(set.source) ~= "github" then
-		cb(false, "only github sets can be updated")
+function M.update(program, cb)
+	if kind(program.source) ~= "github" then
+		cb(false, "only github programs can be updated")
 		return
 	end
-	if not M.is_ready(set) then
-		cb(false, "set not cached yet; nothing to update")
+	if not M.is_ready(program) then
+		cb(false, "program not cached yet; nothing to update")
 		return
 	end
 
-	vim.system({ "git", "pull", "--ff-only" }, { cwd = M.cache_dir(set.name), text = true }, function(res)
+	vim.system({ "git", "pull", "--ff-only" }, { cwd = M.cache_dir(program.name), text = true }, function(res)
 		vim.schedule(function()
 			if res.code == 0 then
 				cb(true, nil)

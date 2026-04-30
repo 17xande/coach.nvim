@@ -1,12 +1,12 @@
 -- coach.nvim - Neovim keybinding coach
 -- Public API
 
-local exercises = require("coach.exercises")
+local sets = require("coach.sets")
 local index = require("coach.index")
 local keybinds = require("coach.keybinds")
 local log = require("coach.log")
 local progress = require("coach.progress")
-local sets = require("coach.sets")
+local programs = require("coach.programs")
 local sources = require("coach.sources")
 local window = require("coach.window")
 local tracker = require("coach.tracker")
@@ -25,14 +25,14 @@ local save_autocmd = nil
 ---@type string
 local next_key = "<leader>kn"
 
---- Render the current exercise in the window
+--- Render the current set in the window
 local function render_current()
-	local exercise = exercises.get(progress.get_exercise_index())
-	if exercise then
-		local shadowed = keybinds.get_shadowed(exercise)
-		local alternatives = keybinds.get_alternatives(exercise)
-		local reps = exercise.required_reps or progress.get_required_reps()
-		window.render(exercise, progress.get_counts(), reps, next_key, shadowed, alternatives)
+	local s = sets.get(progress.get_set_index())
+	if s then
+		local shadowed = keybinds.get_shadowed(s)
+		local alternatives = keybinds.get_alternatives(s)
+		local reps = s.required_reps or progress.get_required_reps()
+		window.render(s, progress.get_counts(), reps, next_key, shadowed, alternatives)
 	end
 end
 
@@ -116,7 +116,7 @@ function M.toggle_window()
 	end
 end
 
-function M.next_exercise()
+function M.next_set()
 	if not active then
 		vim.notify("coach.nvim: coaching is not active.", vim.log.levels.WARN)
 		return
@@ -130,23 +130,23 @@ function M.next_exercise()
 		return
 	end
 
-	local exercise = exercises.get(progress.get_exercise_index())
-	local shadowed = exercise and keybinds.get_shadowed(exercise) or {}
+	local s = sets.get(progress.get_set_index())
+	local shadowed = s and keybinds.get_shadowed(s) or {}
 
-	if not progress.is_exercise_complete(shadowed) then
-		vim.notify("coach.nvim: complete the current exercise first.", vim.log.levels.INFO)
+	if not progress.is_set_complete(shadowed) then
+		vim.notify("coach.nvim: complete the current set first.", vim.log.levels.INFO)
 		return
 	end
 
 	if not progress.advance() then
-		vim.notify("coach.nvim: you've completed all exercises!", vim.log.levels.INFO)
+		vim.notify("coach.nvim: you've completed all sets!", vim.log.levels.INFO)
 		return
 	end
 
 	render_current()
 end
 
-function M.skip_exercise()
+function M.skip_set()
 	if not active then
 		vim.notify("coach.nvim: coaching is not active.", vim.log.levels.WARN)
 		return
@@ -161,28 +161,28 @@ function M.skip_exercise()
 	end
 
 	if not progress.advance() then
-		vim.notify("coach.nvim: already on the last exercise.", vim.log.levels.INFO)
+		vim.notify("coach.nvim: already on the last set.", vim.log.levels.INFO)
 		return
 	end
 
 	render_current()
 end
 
-function M.prev_exercise()
+function M.prev_set()
 	if not active then
 		vim.notify("coach.nvim: coaching is not active.", vim.log.levels.WARN)
 		return
 	end
 
 	if not progress.go_back() then
-		vim.notify("coach.nvim: already on the first exercise.", vim.log.levels.INFO)
+		vim.notify("coach.nvim: already on the first set.", vim.log.levels.INFO)
 		return
 	end
 
 	render_current()
 end
 
-function M.reset_exercise()
+function M.reset_set()
 	if not active then
 		vim.notify("coach.nvim: coaching is not active.", vim.log.levels.WARN)
 		return
@@ -190,7 +190,7 @@ function M.reset_exercise()
 
 	progress.reset_current()
 	render_current()
-	vim.notify("coach.nvim: current exercise reset.", vim.log.levels.INFO)
+	vim.notify("coach.nvim: current set reset.", vim.log.levels.INFO)
 end
 
 function M.reset_all()
@@ -205,12 +205,12 @@ function M.reset_all()
 end
 
 function M.help()
-	local exercise = exercises.get(progress.get_exercise_index())
-	if not exercise or not exercise.help_tag then
-		vim.notify("coach.nvim: no help tag for current exercise.", vim.log.levels.INFO)
+	local s = sets.get(progress.get_set_index())
+	if not s or not s.help_tag then
+		vim.notify("coach.nvim: no help tag for current set.", vim.log.levels.INFO)
 		return
 	end
-	vim.cmd("help " .. exercise.help_tag)
+	vim.cmd("help " .. s.help_tag)
 end
 
 function M.toggle_index()
@@ -235,11 +235,22 @@ function M.toggle_index()
 		end
 	end
 
-	index.open(function(ex_idx)
-		progress.go_to(ex_idx)
+	index.open(function(kind, value)
 		welcome_active = false
-		window.open()
-		render_current()
+		if kind == "set" then
+			progress.go_to(value)
+			window.open()
+			render_current()
+		elseif kind == "session" then
+			local active_program = programs.get_active()
+			if active_program then
+				M.switch_session(active_program.program .. "/" .. value)
+			else
+				M.switch_session(value)
+			end
+			window.open()
+			render_current()
+		end
 	end, on_float_restore)
 end
 
@@ -248,11 +259,11 @@ function M.is_active()
 	return active
 end
 
---- Switch to a volume by "set/volume" or just "set" (first volume of that set).
+--- Switch to a session by "program/session" or just "program" (first session of that program).
 ---@param target string|nil
-function M.switch_volume(target)
-	local function do_switch(set_name, volume_name)
-		local ok, err = sets.switch(set_name, volume_name)
+function M.switch_session(target)
+	local function do_switch(program_name, session_name)
+		local ok, err = programs.switch(program_name, session_name)
 		if not ok then
 			vim.notify("coach.nvim: " .. (err or "switch failed"), vim.log.levels.WARN)
 			return
@@ -265,19 +276,19 @@ function M.switch_volume(target)
 
 	if not target or target == "" then
 		-- Picker
-		local pairs_list = sets.all_volume_pairs()
+		local pairs_list = programs.all_session_pairs()
 		if #pairs_list == 0 then
-			vim.notify("coach.nvim: no volumes available.", vim.log.levels.WARN)
+			vim.notify("coach.nvim: no sessions available.", vim.log.levels.WARN)
 			return
 		end
 		vim.ui.select(pairs_list, {
-			prompt = "Coach volume:",
+			prompt = "Coach session:",
 			format_item = function(p)
-				return p.set .. "/" .. p.volume
+				return p.program .. "/" .. p.session
 			end,
 		}, function(choice)
 			if choice then
-				do_switch(choice.set, choice.volume)
+				do_switch(choice.program, choice.session)
 			end
 		end)
 		return
@@ -291,49 +302,49 @@ function M.switch_volume(target)
 	end
 end
 
---- Switch to the first volume of a named set.
----@param set_name string|nil
-function M.switch_set(set_name)
-	if not set_name or set_name == "" then
-		local set_list = sets.list()
-		if #set_list == 0 then
-			vim.notify("coach.nvim: no sets configured.", vim.log.levels.WARN)
+--- Switch to the first session of a named program.
+---@param program_name string|nil
+function M.switch_program(program_name)
+	if not program_name or program_name == "" then
+		local program_list = programs.list()
+		if #program_list == 0 then
+			vim.notify("coach.nvim: no programs configured.", vim.log.levels.WARN)
 			return
 		end
-		vim.ui.select(set_list, {
-			prompt = "Coach set:",
-			format_item = function(s)
-				return s.name
+		vim.ui.select(program_list, {
+			prompt = "Coach program:",
+			format_item = function(p)
+				return p.name
 			end,
 		}, function(choice)
 			if choice then
-				M.switch_volume(choice.name)
+				M.switch_session(choice.name)
 			end
 		end)
 		return
 	end
-	M.switch_volume(set_name)
+	M.switch_session(program_name)
 end
 
---- `git pull` a github set's cache and reload it.
----@param set_name string|nil  When nil, updates every github set.
-function M.update_set(set_name)
+--- `git pull` a github program's cache and reload it.
+---@param program_name string|nil  When nil, updates every github program.
+function M.update_program(program_name)
 	local to_update = {}
-	if set_name and set_name ~= "" then
-		table.insert(to_update, set_name)
+	if program_name and program_name ~= "" then
+		table.insert(to_update, program_name)
 	else
-		for _, s in ipairs(sets.list()) do
-			if sources.kind(s.source) == "github" then
-				table.insert(to_update, s.name)
+		for _, p in ipairs(programs.list()) do
+			if sources.kind(p.source) == "github" then
+				table.insert(to_update, p.name)
 			end
 		end
 	end
 	if #to_update == 0 then
-		vim.notify("coach.nvim: no github sets to update.", vim.log.levels.INFO)
+		vim.notify("coach.nvim: no github programs to update.", vim.log.levels.INFO)
 		return
 	end
 	for _, name in ipairs(to_update) do
-		sets.update(name, function(ok, err)
+		programs.update(name, function(ok, err)
 			if ok then
 				vim.notify("coach.nvim: updated '" .. name .. "'", vim.log.levels.INFO)
 				if active and window.is_open() then
@@ -346,13 +357,13 @@ function M.update_set(set_name)
 	end
 end
 
---- Completion for :CoachVolume
+--- Completion for :CoachSession
 ---@param arg_lead string
 ---@return string[]
-local function complete_volume(arg_lead)
+local function complete_session(arg_lead)
 	local out = {}
-	for _, p in ipairs(sets.all_volume_pairs()) do
-		local name = p.set .. "/" .. p.volume
+	for _, p in ipairs(programs.all_session_pairs()) do
+		local name = p.program .. "/" .. p.session
 		if name:sub(1, #arg_lead) == arg_lead then
 			table.insert(out, name)
 		end
@@ -362,11 +373,11 @@ end
 
 ---@param arg_lead string
 ---@return string[]
-local function complete_set(arg_lead)
+local function complete_program(arg_lead)
 	local out = {}
-	for _, s in ipairs(sets.list()) do
-		if s.name:sub(1, #arg_lead) == arg_lead then
-			table.insert(out, s.name)
+	for _, p in ipairs(programs.list()) do
+		if p.name:sub(1, #arg_lead) == arg_lead then
+			table.insert(out, p.name)
 		end
 	end
 	return out
@@ -377,11 +388,11 @@ end
 ---   required_reps?: number,
 ---   progress_dir?: string,
 ---   log_file?: string,
----   sets?: { name: string, source?: string }[],
+---   programs?: { name: string, source?: string }[],
 ---   active?: string,
 ---   keybinds?: {
 ---     toggle?: string, window?: string, next?: string, prev?: string,
----     help?: string, skip?: string, index?: string, volume?: string,
+---     help?: string, skip?: string, index?: string, session?: string,
 ---   },
 --- }
 function M.setup(opts)
@@ -394,18 +405,18 @@ function M.setup(opts)
 		progress_dir = opts.progress_dir,
 	})
 
-	-- Wire the switch hook: save/load progress for the new volume, re-render.
-	sets._on_switch = function(set_name, volume_name)
-		progress.switch(set_name, volume_name)
+	-- Wire the switch hook: save/load progress for the new session, re-render.
+	programs._on_switch = function(program_name, session_name)
+		progress.switch(program_name, session_name)
 		if active and window.is_open() then
 			vim.schedule(render_current)
 		end
 	end
 
-	sets.configure({ sets = opts.sets, active = opts.active }, function()
-		local a = sets.get_active()
+	programs.configure({ programs = opts.programs, active = opts.active }, function()
+		local a = programs.get_active()
 		if a then
-			progress.switch(a.set, a.volume)
+			progress.switch(a.program, a.session)
 			if active and window.is_open() then
 				vim.schedule(render_current)
 			end
@@ -413,9 +424,9 @@ function M.setup(opts)
 	end)
 
 	-- Apply initial active immediately if one was resolved synchronously.
-	local initial = sets.get_active()
+	local initial = programs.get_active()
 	if initial then
-		progress.switch(initial.set, initial.volume)
+		progress.switch(initial.program, initial.session)
 	end
 
 	-- User commands
@@ -432,19 +443,19 @@ function M.setup(opts)
 		M.toggle_window()
 	end, {})
 	vim.api.nvim_create_user_command("CoachNext", function()
-		M.next_exercise()
+		M.next_set()
 	end, {})
 	vim.api.nvim_create_user_command("CoachPrev", function()
-		M.prev_exercise()
+		M.prev_set()
 	end, {})
 	vim.api.nvim_create_user_command("CoachReset", function()
-		M.reset_exercise()
+		M.reset_set()
 	end, {})
 	vim.api.nvim_create_user_command("CoachResetAll", function()
 		M.reset_all()
 	end, {})
 	vim.api.nvim_create_user_command("CoachSkip", function()
-		M.skip_exercise()
+		M.skip_set()
 	end, {})
 	vim.api.nvim_create_user_command("CoachHelp", function()
 		M.help()
@@ -452,15 +463,15 @@ function M.setup(opts)
 	vim.api.nvim_create_user_command("CoachIndex", function()
 		M.toggle_index()
 	end, {})
-	vim.api.nvim_create_user_command("CoachVolume", function(args)
-		M.switch_volume(args.args)
-	end, { nargs = "?", complete = complete_volume })
-	vim.api.nvim_create_user_command("CoachSet", function(args)
-		M.switch_set(args.args)
-	end, { nargs = "?", complete = complete_set })
+	vim.api.nvim_create_user_command("CoachSession", function(args)
+		M.switch_session(args.args)
+	end, { nargs = "?", complete = complete_session })
+	vim.api.nvim_create_user_command("CoachProgram", function(args)
+		M.switch_program(args.args)
+	end, { nargs = "?", complete = complete_program })
 	vim.api.nvim_create_user_command("CoachUpdate", function(args)
-		M.update_set(args.args)
-	end, { nargs = "?", complete = complete_set })
+		M.update_program(args.args)
+	end, { nargs = "?", complete = complete_program })
 
 	-- Keybindings
 	local keys = vim.tbl_extend("force", {
@@ -471,7 +482,7 @@ function M.setup(opts)
 		help = "<leader>kh",
 		skip = "<leader>ks",
 		index = "<leader>ki",
-		volume = "<leader>kv",
+		session = "<leader>kS",
 	}, opts.keybinds or {})
 
 	next_key = keys.next
@@ -484,24 +495,24 @@ function M.setup(opts)
 		M.toggle_window()
 	end, { desc = "Coach: toggle window" })
 	vim.keymap.set("n", keys.next, function()
-		M.next_exercise()
-	end, { desc = "Coach: next exercise" })
+		M.next_set()
+	end, { desc = "Coach: next set" })
 	vim.keymap.set("n", keys.prev, function()
-		M.prev_exercise()
-	end, { desc = "Coach: prev exercise" })
+		M.prev_set()
+	end, { desc = "Coach: prev set" })
 	vim.keymap.set("n", keys.help, function()
 		M.help()
 	end, { desc = "Coach: open help section" })
 	vim.keymap.set("n", keys.skip, function()
-		M.skip_exercise()
-	end, { desc = "Coach: skip exercise" })
+		M.skip_set()
+	end, { desc = "Coach: skip set" })
 	vim.keymap.set("n", keys.index, function()
 		M.toggle_index()
 	end, { desc = "Coach: toggle index" })
-	if keys.volume then
-		vim.keymap.set("n", keys.volume, function()
-			M.switch_volume(nil)
-		end, { desc = "Coach: pick volume" })
+	if keys.session then
+		vim.keymap.set("n", keys.session, function()
+			M.switch_session(nil)
+		end, { desc = "Coach: pick session" })
 	end
 
 	-- Auto-start if coaching was active last session.
