@@ -126,4 +126,49 @@ describe("exercise notation", function()
 	end
 end)
 
+-- =========================================================================
+-- Negative rule triggers, across every shipped session
+-- =========================================================================
+
+--- Every negative-rule trigger in every session this repo ships, examples
+--- included: the example sessions are where the rules live, and a trigger that
+--- names an action nothing emits fails exactly as quietly as a dead exercise --
+--- the rule simply never fires. Arrow triggers were in that state until
+--- track-action decoded K_SPECIAL.
+---@return table[] { session, set_id, trigger, action }
+local function shipped_triggers()
+	local out = {}
+	local files = vim.fn.glob(vim.fn.getcwd() .. "/exercise-programs/**/*.lua", false, true)
+	table.sort(files)
+	local parse_trigger = require("coach.tracker")._parse_trigger
+	for _, file in ipairs(files) do
+		local session = vim.fn.fnamemodify(file, ":t:r")
+		for _, set in ipairs(dofile(file)) do
+			for _, rule in ipairs(set.negatives or {}) do
+				for _, trigger in ipairs(rule.triggers or {}) do
+					local action = parse_trigger(trigger)
+					out[#out + 1] = { session = session, set_id = set.id, trigger = trigger, action = action }
+				end
+			end
+		end
+	end
+	return out
+end
+
+describe("every shipped negative trigger can fire", function()
+	local TRIGGERS = shipped_triggers()
+
+	it("there are triggers to check at all", function()
+		eq(true, #TRIGGERS > 0, "no negative rules found under exercise-programs/")
+	end)
+
+	for _, t in ipairs(TRIGGERS) do
+		if not t.action:match("^ex:") then
+			it(("%s %s  %s"):format(t.session, t.set_id, t.trigger), function()
+				eq(t.action, emitted_for(t.action))
+			end)
+		end
+	end
+end)
+
 h.summary()

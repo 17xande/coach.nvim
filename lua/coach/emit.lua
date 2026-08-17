@@ -106,4 +106,38 @@ function M.unemittable(sets_list)
 	return out
 end
 
+--- Every negative-rule trigger in `sets_list` that the parser cannot emit.
+---
+--- The same defect as a dead exercise and just as quiet: a rule whose trigger names
+--- an action nothing emits never fires, so the habit it punishes goes unpunished and
+--- nothing says so. Arrow-key triggers were in exactly that state while track-action
+--- reported `<Down>` as raw bytes.
+---
+--- The `[N]` consecutive-press prefix is stripped through the rule engine's own
+--- parser, so this cannot disagree with what the engine matches on.
+---@param sets_list table[] Set list, as `sets.get` returns them
+---@return { set_id: string, trigger: string, action: string }[]
+function M.unemittable_triggers(sets_list)
+	local out = {}
+	if not M.is_available() then
+		return out
+	end
+
+	local parse_trigger = require("coach.tracker")._parse_trigger
+
+	for _, set in ipairs(sets_list or {}) do
+		for _, rule in ipairs(set.negatives or {}) do
+			for _, trigger in ipairs(rule.triggers or {}) do
+				if type(trigger) == "string" then
+					local action = parse_trigger(trigger)
+					if not action:match("^ex:") and M.emitted_for(action) ~= action then
+						out[#out + 1] = { set_id = set.id, trigger = trigger, action = action }
+					end
+				end
+			end
+		end
+	end
+	return out
+end
+
 return M

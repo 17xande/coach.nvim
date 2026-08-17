@@ -314,10 +314,10 @@ Reps are meant to come from editing, and holding a key down is not editing.
 Some sets also declare negative rules: an exercise the set is trying to
 replace (arrow keys, `l` spam) decrements progress rather than adding to it.
 
-Known gap: a trigger naming an arrow key does not fire yet. track-action.nvim
-reports special keys as raw bytes, so `<Down>` arrives as `<80>kd` and never
-matches a trigger written as `<Down>`. Use `h`/`l` triggers until that is
-fixed there; see |track-action-special-keys|.
+Triggers name special keys as Vim names them -- `<Down>`, `<Home>`, `<PageUp>`
+-- because that is what track-action.nvim reports for them; see
+|track-action-special-keys|. `:checkhealth coach` reports any trigger whose
+action nothing emits, which is a rule that can never fire.
 
 ==============================================================================
 12. WRITING A PROGRAM                                         *coach-programs*
@@ -391,8 +391,9 @@ debounced rather than written per rep, because a rep is a keystroke.
 Checks that track-action.nvim is installed and still exposes the functions
 coach.nvim shares with it, that a session is active with sets loaded, that
 every configured program resolved to at least one session, that the progress
-directory is writable, and that every exercise of the active session can
-actually be emitted. The last of those is the one worth running after writing
-your own program - see |coach-exercise-name|.
+directory is writable, that every exercise of the active session can actually
+be emitted, and that every negative rule's triggers can fire. The last two are
+the ones worth running after writing your own program - see
+|coach-exercise-name| and |coach-negatives|.
 
 vim:tw=78:ts=8:noet:ft=help:norl:

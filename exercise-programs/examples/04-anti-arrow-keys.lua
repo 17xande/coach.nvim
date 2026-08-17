@@ -21,11 +21,11 @@
 --   "[count]l"   → counted `l`, e.g. `4l`, `7l`  (note: literal "[count]")
 -- These are distinct triggers — `[count]l` is a separate emit from `l`.
 --
--- Note: `<Right>`/`<Left>`/`<Home>`/`<End>` triggers do NOT fire today, and the
--- reason is known: Vim reports a special key to track-action as 0x80 plus two
--- bytes, and it translates only bytes 1-31, so `<Down>` is emitted as "<80>kd".
--- A trigger naming `<Down>` therefore never matches. `h`/`l` are reliable; use
--- those until track-action decodes K_SPECIAL (see :help track-action-special-keys).
+-- Special keys are named as Vim names them: `<Right>`, `<Left>`, `<Home>`,
+-- `<End>`, `<PageUp>`. track-action decodes the raw bytes Vim reports for them
+-- with `keytrans()`, so those triggers match (see
+-- :help track-action-special-keys). `:checkhealth coach` reports any trigger
+-- whose action nothing emits, which is a rule that can never fire.
 
 return {
 	{

@@ -143,6 +143,55 @@ describe("health.report", function()
 		end)
 	end)
 
+	describe("negative rule triggers", function()
+		-- The same failure as a dead exercise, and invisible in the same way: a
+		-- trigger naming an action nothing emits simply never fires. Arrow-key
+		-- triggers were in exactly that state for as long as track-action reported
+		-- <Down> as raw bytes.
+		local function arrow_set(trigger)
+			return {
+				{
+					id = "99.2",
+					title = "Anti-arrows",
+					exercises = { { exercise = "w", display = "w", desc = "Word" } },
+					negatives = { { triggers = { trigger }, decrement = { "w" } } },
+				},
+			}
+		end
+
+		it("is not reported when the session declares no rules", function()
+			local report = health.report({
+				sets = { { id = "99.1", exercises = { { exercise = "w", display = "w", desc = "Word" } } } },
+			})
+			eq(nil, entry(report, "negative rules"))
+		end)
+
+		-- Unlike the checks above, these assert on the entry rather than tolerating
+		-- its absence: without a parser there is nothing to check, but *with* one
+		-- the answer is not optional. `<Right>` emitting at all is the fix for the
+		-- K_SPECIAL bug, so a tolerant test here would pass either way.
+		local have_parser = require("coach.emit").is_available()
+
+		it("is ok for a trigger the parser emits", function()
+			if not have_parser then
+				return
+			end
+			local e = entry(health.report({ sets = arrow_set("[2]<Right>") }), "negative rules")
+			eq("ok", e and e.level, e and e.message or "no entry")
+		end)
+
+		it("warns and names a trigger the parser cannot emit", function()
+			if not have_parser then
+				return
+			end
+			local e = entry(health.report({ sets = arrow_set("[2]<80>kr") }), "negative rules")
+			local message = e and e.message or "no entry"
+			eq("warn", e and e.level, message)
+			is_true(message:find("<80>kr", 1, true) ~= nil, message)
+			is_true(message:find("99.2", 1, true) ~= nil, message)
+		end)
+	end)
+
 	it("check() runs without error", function()
 		-- vim.health.* is only meaningful inside :checkhealth, but calling it must
 		-- not raise: a health module that errors is worse than no health module.

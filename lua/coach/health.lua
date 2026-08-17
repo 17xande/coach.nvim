@@ -202,6 +202,45 @@ local function check_exercises(sets_list)
 	}
 end
 
+--- Check every negative rule of the active session can actually fire.
+---@param sets_list table[]
+---@return coach.HealthEntry|nil nil with no parser to ask, or no rules to check
+local function check_triggers(sets_list)
+	if not emit.is_available() then
+		return nil
+	end
+
+	local rules = 0
+	for _, set in ipairs(sets_list) do
+		rules = rules + #(set.negatives or {})
+	end
+	if rules == 0 then
+		return nil
+	end
+
+	local dead = emit.unemittable_triggers(sets_list)
+	if #dead == 0 then
+		return {
+			name = "negative rules",
+			level = "ok",
+			message = ("every trigger of the %d rule(s) in the active session can fire"):format(rules),
+		}
+	end
+
+	local shown = {}
+	for i = 1, math.min(#dead, 5) do
+		shown[#shown + 1] = ("%s %s"):format(dead[i].set_id, dead[i].trigger)
+	end
+	local more = #dead > #shown and (" (+%d more)"):format(#dead - #shown) or ""
+
+	return {
+		name = "negative rules",
+		level = "warn",
+		message = ("%d trigger(s) can never fire: %s%s"):format(#dead, table.concat(shown, ", "), more),
+		advice = "these name action strings track-action does not emit; respell them (see its action format table)",
+	}
+end
+
 ---@class coach.HealthOverrides
 ---@field active? { program: string, session: string }|false `false` means none
 ---@field set_count? number
@@ -248,6 +287,11 @@ function M.report(opts)
 	local exercises = check_exercises(sets_list)
 	if exercises then
 		report[#report + 1] = exercises
+	end
+
+	local triggers = check_triggers(sets_list)
+	if triggers then
+		report[#report + 1] = triggers
 	end
 
 	return report
