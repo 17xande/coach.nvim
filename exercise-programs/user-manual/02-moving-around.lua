@@ -13,6 +13,16 @@ return {
 		},
 	},
 	{
+		id = "03.1c",
+		title = "Counted Word Movement",
+		help_tag = "03.1",
+		exercises = {
+			{ exercise = "[count]w", display = "[count]w", desc = "N words forward" },
+			{ exercise = "[count]b", display = "[count]b", desc = "N words backward" },
+			{ exercise = "[count]e", display = "[count]e", desc = "N word ends forward" },
+		},
+	},
+	{
 		id = "03.1W",
 		title = "WORD Movement",
 		help_tag = "03.1",
@@ -64,6 +74,17 @@ return {
 			{ exercise = "H", display = "H", desc = "Screen top" },
 			{ exercise = "M", display = "M", desc = "Screen middle" },
 			{ exercise = "L", display = "L", desc = "Screen bottom" },
+		},
+	},
+	{
+		-- Both forms the manual raises at 03.5 ({n}G, {n}%), and neither was drilled
+		-- anywhere in the content before.
+		id = "03.5c",
+		title = "Counted Line Jumps",
+		help_tag = "03.5",
+		exercises = {
+			{ exercise = "[count]G", display = "[count]G", desc = "Go to line N" },
+			{ exercise = "[count]%", display = "[count]%", desc = "N percent into file" },
 		},
 	},
 	{

@@ -51,6 +51,22 @@ return {
 		},
 	},
 	{
+		-- The manual introduces counts here (|02.6|, "Using a count") and keeps
+		-- raising them: 03.5, 04.1, 10.1, 23.3, 26.2. A counted command is its own
+		-- exercise -- `w` and `[count]w` are different disciplines, and any count
+		-- credits the rep, the digit does not matter.
+		id = "02.6c",
+		title = "Using a Count",
+		help_tag = "02.6",
+		exercises = {
+			{ exercise = "[count]x", display = "[count]x", desc = "Delete N chars" },
+			{ exercise = "[count]dd", display = "[count]dd", desc = "Delete N lines" },
+			{ exercise = "[count]j", display = "[count]j", desc = "N lines down" },
+			{ exercise = "[count]k", display = "[count]k", desc = "N lines up" },
+			{ exercise = "[count]o", display = "[count]o", desc = "Open N lines below" },
+		},
+	},
+	{
 		id = "02.7",
 		title = "Save and Quit",
 		help_tag = "02.7",

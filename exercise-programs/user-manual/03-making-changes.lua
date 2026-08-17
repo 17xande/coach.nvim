@@ -11,6 +11,18 @@ return {
 		},
 	},
 	{
+		-- |04.1| makes the point with `d4w` and `3dw`: the count can sit before the
+		-- operator or before the motion, and both mean the same thing. track-action
+		-- emits [count]dw either way, so one exercise covers both spellings.
+		id = "04.1c",
+		title = "Counted Operators",
+		help_tag = "04.1",
+		exercises = {
+			{ exercise = "[count]dw", display = "[count]dw", desc = "Delete N words (3dw or d3w)" },
+			{ exercise = "[count]dd", display = "[count]dd", desc = "Delete N lines" },
+		},
+	},
+	{
 		id = "04.2",
 		title = "Change Operator",
 		help_tag = "04.2",

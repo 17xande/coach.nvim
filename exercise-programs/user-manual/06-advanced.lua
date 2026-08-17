@@ -221,6 +221,17 @@ return {
 		},
 	},
 	{
+		-- |26.2| teaches this with a count ("5 CTRL-A"), which is the form that makes
+		-- the command worth knowing.
+		id = "26.2c",
+		title = "Counted Increment",
+		help_tag = "26.2",
+		exercises = {
+			{ exercise = "[count]<C-a>", display = "[count]Ctrl-A", desc = "Add N to number" },
+			{ exercise = "[count]<C-x>", display = "[count]Ctrl-X", desc = "Subtract N from number" },
+		},
+	},
+	{
 		id = "26.3",
 		title = "Batch Commands",
 		help_tag = "26.3",
