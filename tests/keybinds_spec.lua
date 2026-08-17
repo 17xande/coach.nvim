@@ -205,6 +205,120 @@ describe("keybinds", function()
 			vim.keymap.del("n", "tn")
 		end)
 	end)
+
+	-- Exercises carry the decorations track-action puts in an action string:
+	-- `[count]w`, `f{char}`. Neither is a key anyone can press, so a lookup that
+	-- passes one to maparg() finds nothing and silently reports "not shadowed" --
+	-- leaving the exercise demanding reps for a key the user has remapped away.
+	local has_track_action = pcall(require, "track-action.commands")
+	if not has_track_action then
+		print("keybinds_spec: track-action.nvim not found, skipping the decorated-exercise tests")
+	end
+
+	describe("decorated exercises", has_track_action and function()
+		describe("is_shadowed strips the decoration first", function()
+			it("a remapped f shadows f{char}", function()
+				vim.keymap.set("n", "f", "<cmd>echo 'flash'<cr>", { desc = "Flash" })
+				local kb = fresh_keybinds()
+				local is_sh, desc = kb.is_shadowed("f{char}")
+				is_true(is_sh)
+				eq("Flash", desc)
+				vim.keymap.del("n", "f")
+			end)
+
+			it("a remapped w shadows both w and [count]w", function()
+				vim.keymap.set("n", "w", "<cmd>echo 'nope'<cr>", { desc = "Hijacked" })
+				local kb = fresh_keybinds()
+				is_true(kb.is_shadowed("w"))
+				is_true(kb.is_shadowed("[count]w"))
+				vim.keymap.del("n", "w")
+			end)
+
+			it("an unmapped decorated exercise is not shadowed", function()
+				local kb = fresh_keybinds()
+				is_false(kb.is_shadowed("f{char}"))
+				is_false(kb.is_shadowed("[count]e"))
+				is_false(kb.is_shadowed("m{mark}"))
+			end)
+
+			it("a multi-key decorated exercise strips to its whole key sequence", function()
+				vim.keymap.set("n", "dw", "<cmd>echo 'nope'<cr>", { desc = "Hijacked" })
+				local kb = fresh_keybinds()
+				is_true(kb.is_shadowed("[count]dw"))
+				vim.keymap.del("n", "dw")
+			end)
+
+			it("a mapping on a prefix of the keys is not detected", function()
+				-- Known gap, unchanged by this: remapping `d` does stop `dw` working,
+				-- but is_shadowed only asks about the whole sequence. It applies to
+				-- every operator exercise, decorated or not, so it belongs with the
+				-- other shadow-detection work rather than here.
+				vim.keymap.set("n", "d", "<cmd>echo 'nope'<cr>", { desc = "Hijacked" })
+				local kb = fresh_keybinds()
+				is_false(kb.is_shadowed("[count]dw"))
+				is_false(kb.is_shadowed("dw"))
+				vim.keymap.del("n", "d")
+			end)
+
+			it("the count-expr escape hatch applies to [count]j", function()
+				-- The most commonly remapped counted motion, and the gate used to be
+				-- `#exercise == 1`, so it could never fire for "[count]j".
+				vim.keymap.set("n", "j", "v:count == 0 ? 'gj' : 'j'", { expr = true })
+				local kb = fresh_keybinds()
+				is_false(kb.is_shadowed("j"))
+				is_false(kb.is_shadowed("[count]j"))
+				vim.keymap.del("n", "j")
+			end)
+		end)
+
+		describe("get_alternatives resolves the mapping's action", function()
+			it("a map to 5w is an alternative for [count]w", function()
+				vim.keymap.set("n", "<leader>W", "5w", {})
+				local kb = fresh_keybinds()
+				local alts = kb.get_alternatives({
+					exercises = {
+						{ exercise = "w", display = "w", desc = "Word" },
+						{ exercise = "[count]w", display = "[count]w", desc = "N words" },
+					},
+				})
+				is_true(alts["[count]w"] ~= nil, "5w should be an alternative for [count]w")
+				-- and not for the uncounted exercise, which it does not perform
+				is_false(alts["w"] ~= nil)
+				vim.keymap.del("n", "<leader>W")
+			end)
+
+			it("a map to fx is an alternative for f{char}", function()
+				vim.keymap.set("n", "<leader>F", "fx", {})
+				local kb = fresh_keybinds()
+				local alts = kb.get_alternatives({
+					exercises = { { exercise = "f{char}", display = "f{char}", desc = "Find" } },
+				})
+				is_true(alts["f{char}"] ~= nil)
+				vim.keymap.del("n", "<leader>F")
+			end)
+
+			it("a <Plug> mapping is not an alternative for anything", function()
+				vim.keymap.set("n", "<leader>P", "<Plug>SomePluginThing", {})
+				local kb = fresh_keybinds()
+				local alts = kb.get_alternatives({
+					exercises = { { exercise = "w", display = "w", desc = "Word" } },
+				})
+				eq(0, vim.tbl_count(alts))
+				vim.keymap.del("n", "<leader>P")
+			end)
+
+			it("an expr mapping is not an alternative either", function()
+				-- Its rhs is an expression to evaluate, not keys to press.
+				vim.keymap.set("n", "<leader>E", "'w'", { expr = true })
+				local kb = fresh_keybinds()
+				local alts = kb.get_alternatives({
+					exercises = { { exercise = "w", display = "w", desc = "Word" } },
+				})
+				eq(0, vim.tbl_count(alts))
+				vim.keymap.del("n", "<leader>E")
+			end)
+		end)
+	end or function() end)
 end)
 
 h.summary()
