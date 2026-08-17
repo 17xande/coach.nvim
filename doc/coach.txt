@@ -357,9 +357,14 @@ is not always what you type: `fx` emits `f{char}`, `3w` emits `[count]w`,
 emitted can never be completed - the key is pressed, nothing is credited, and
 the set blocks |:CoachNext| forever.
 
+An ex command is drilled as `ex:` plus **Vim's own name for it**, expanded
+from whatever abbreviation you type and carrying the bang: `:q` is `ex:quit`,
+`:q!` is `ex:quit!`, `:bn` is `ex:bnext`, `:!ls` is `ex:!`. See
+|track-action-ex-names|.
+
 That failure is silent, so check for it: `:checkhealth coach` reports every
-exercise in the active session that cannot be emitted. See track-action.nvim's
-documentation for the action format.
+exercise in the active session that cannot be emitted, ex commands included.
+See track-action.nvim's docs for the action format.
 
 Invalid sets are skipped with a warning rather than taking the file down: a
 set needs a non-empty `id`, `title` and `exercises`, and every exercise needs

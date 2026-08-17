@@ -75,14 +75,17 @@ describe("every builtin exercise can be emitted", function()
 
 	-- One test per exercise rather than one summarizing test, so a failure names the
 	-- set and the exercise instead of a count.
+	--
+	-- `ex:` exercises are in here too. They used to be skipped, because they come
+	-- from the CmdlineLeave path and the parser has nothing to say about them -- but
+	-- `classify_ex_command` does, and while they went unchecked nine of them were
+	-- dead: `ex:q` where the tracker emits `ex:quit`, `ex:e!` where it emits
+	-- `ex:edit!`, `ex:!` where it emitted nothing nameable at all.
 	for _, e in ipairs(EXERCISES) do
-		-- `ex:` exercises come from the CmdlineLeave path, not the parser.
-		if not e.exercise:match("^ex:") then
-			local label = ("%s %s  %s"):format(e.session, e.set_id, e.exercise)
-			it(label, function()
-				eq(e.exercise, emitted_for(e.exercise))
-			end)
-		end
+		local label = ("%s %s  %s"):format(e.session, e.set_id, e.exercise)
+		it(label, function()
+			eq(e.exercise, emitted_for(e.exercise))
+		end)
 	end
 end)
 

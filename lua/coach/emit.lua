@@ -20,6 +20,16 @@ end
 
 M._parser_mod = parser_mod
 
+--- track-action's mappings module, or nil if it is not installed. This is where an
+--- `ex:` exercise gets its answer: those never reach the parser -- the tracker
+--- classifies them from the CmdlineLeave path -- so asking the parser about one
+--- says nothing, which is why they used to be exempt from this check entirely.
+---@return table|nil
+local function mappings_mod()
+	local ok, mappings = pcall(require, "track-action.mappings")
+	return ok and mappings or nil
+end
+
 --- Split an action string into the keys the tracker would hand the parser.
 --- `<C-w>` is one key.
 ---@param str string
@@ -53,12 +63,22 @@ function M.keystrokes_for(exercise)
 	return M.split_keys(typed)
 end
 
---- What the parser emits when those keystrokes are typed, or nil if it emits
---- nothing -- and nil too when track-action is not installed, since then there is
---- no parser to ask. Callers that need to tell those apart check `is_available`.
+--- What track-action emits for an exercise, or nil if it emits nothing -- and nil
+--- too when track-action is not installed, since then there is nothing to ask.
+--- Callers that need to tell those apart check `is_available`.
+---
+--- An `ex:` exercise is answered by the ex-command classifier and everything else
+--- by the parser, which is the same split the tracker itself makes: an ex command
+--- arrives on the CmdlineLeave path and never touches the grammar.
 ---@param exercise string
 ---@return string|nil
 function M.emitted_for(exercise)
+	local typed_ex = exercise:match("^ex:(.+)$")
+	if typed_ex then
+		local mappings = mappings_mod()
+		return mappings and mappings.classify_ex_command(typed_ex) or nil
+	end
+
 	local mod = parser_mod()
 	if not mod then
 		return nil
@@ -78,13 +98,16 @@ end
 --- Can the question be answered at all? False without track-action installed.
 ---@return boolean
 function M.is_available()
-	return parser_mod() ~= nil
+	return parser_mod() ~= nil and mappings_mod() ~= nil
 end
 
---- Every exercise in `sets_list` that the parser cannot emit.
+--- Every exercise in `sets_list` that track-action cannot emit.
 ---
---- `ex:` exercises are exempt: they come from the CmdlineLeave path rather than the
---- parser, so the parser has nothing to say about them.
+--- `ex:` exercises used to be exempt here, on the grounds that the parser has
+--- nothing to say about them -- but the *classifier* does, and while they went
+--- unchecked nine builtin ones were dead: `ex:q` against an emitted `ex:quit`,
+--- `ex:bnext` against `ex:buffer_next`, and so on. Exempting the half of the
+--- content that a different function answers for is not a fence.
 ---@param sets_list table[] Set list, as `sets.get` returns them
 ---@return { set_id: string, exercise: string }[]
 function M.unemittable(sets_list)
@@ -96,10 +119,8 @@ function M.unemittable(sets_list)
 	for _, set in ipairs(sets_list or {}) do
 		for _, ex in ipairs(set.exercises or {}) do
 			local action = ex.exercise
-			if type(action) == "string" and not action:match("^ex:") then
-				if M.emitted_for(action) ~= action then
-					out[#out + 1] = { set_id = set.id, exercise = action }
-				end
+			if type(action) == "string" and M.emitted_for(action) ~= action then
+				out[#out + 1] = { set_id = set.id, exercise = action }
 			end
 		end
 	end
@@ -130,7 +151,7 @@ function M.unemittable_triggers(sets_list)
 			for _, trigger in ipairs(rule.triggers or {}) do
 				if type(trigger) == "string" then
 					local action = parse_trigger(trigger)
-					if not action:match("^ex:") and M.emitted_for(action) ~= action then
+					if M.emitted_for(action) ~= action then
 						out[#out + 1] = { set_id = set.id, trigger = trigger, action = action }
 					end
 				end

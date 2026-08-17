@@ -97,7 +97,7 @@ return {
 		exercises = {
 			{ exercise = "ex:grep", display = ":grep", desc = "Search files" },
 			{ exercise = "ex:cnext", display = ":cnext", desc = "Next quickfix" },
-			{ exercise = "ex:cprev", display = ":cprev", desc = "Prev quickfix" },
+			{ exercise = "ex:cprevious", display = ":cprev", desc = "Prev quickfix" },
 			{ exercise = "ex:clist", display = ":clist", desc = "List quickfix" },
 		},
 	},

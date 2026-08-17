@@ -72,9 +72,9 @@ return {
 		help_tag = "02.7",
 		exercises = {
 			{ exercise = "ZZ", display = "ZZ", desc = "Save and quit" },
-			{ exercise = "ex:q", display = ":q", desc = "Quit" },
-			{ exercise = "ex:q!", display = ":q!", desc = "Quit without saving" },
-			{ exercise = "ex:e!", display = ":e!", desc = "Reload file" },
+			{ exercise = "ex:quit", display = ":q", desc = "Quit" },
+			{ exercise = "ex:quit!", display = ":q!", desc = "Quit without saving" },
+			{ exercise = "ex:edit!", display = ":e!", desc = "Reload file" },
 		},
 	},
 	{

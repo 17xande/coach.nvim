@@ -110,7 +110,7 @@ return {
 			{ exercise = "ex:bfirst", display = ":bfirst", desc = "First buffer" },
 			{ exercise = "ex:blast", display = ":blast", desc = "Last buffer" },
 			{ exercise = "ex:bdelete", display = ":bdelete", desc = "Delete buffer" },
-			{ exercise = "ex:bwipe", display = ":bwipe", desc = "Remove buffer completely" },
+			{ exercise = "ex:bwipeout", display = ":bwipe", desc = "Remove buffer completely" },
 		},
 	},
 
