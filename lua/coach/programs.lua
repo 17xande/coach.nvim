@@ -23,6 +23,15 @@ local active = nil
 ---@type string
 local state_file = vim.fn.stdpath("data") .. "/coach/state.json"
 
+--- Whether the welcome screen has been shown to this user.
+---
+--- It lives here, beside the active pointer, rather than in a session's progress
+--- file: it is shown once per user, and per-session it came back on every new
+--- session. There is no migration -- an existing progress file simply loses the
+--- flag, so the welcome screen shows once more.
+---@type boolean
+local welcome_shown = false
+
 --- Slot: called whenever the active session changes, with (program_name, session_name).
 --- `init.lua` wires this to save progress, switch progress file, and re-render.
 ---@type fun(program_name: string, session_name: string)|nil
@@ -34,7 +43,8 @@ local function ensure_parent(path)
 	vim.fn.mkdir(vim.fn.fnamemodify(path, ":h"), "p")
 end
 
---- Load persisted active pointer from disk.
+--- Load persisted state from disk: the active pointer, and the welcome flag as a
+--- side effect (it has no other owner).
 ---@return { program: string, session: string }|nil
 local function load_state()
 	local f = io.open(state_file, "r")
@@ -44,29 +54,46 @@ local function load_state()
 	local content = f:read("*a")
 	f:close()
 	local ok, data = pcall(vim.json.decode, content)
-	if
-		not ok
-		or type(data) ~= "table"
-		or type(data.active_program) ~= "string"
-		or type(data.active_session) ~= "string"
-	then
+	if not ok or type(data) ~= "table" then
+		return nil
+	end
+
+	welcome_shown = data.welcome_shown == true
+
+	-- A file can hold the welcome flag with no pointer yet, so these are checked
+	-- separately rather than rejecting the whole file.
+	if type(data.active_program) ~= "string" or type(data.active_session) ~= "string" then
 		return nil
 	end
 	return { program = data.active_program, session = data.active_session }
 end
 
---- Persist active pointer to disk.
+--- Persist state to disk. Writes even with no active pointer, since the welcome
+--- flag can be set before any session resolves.
 local function save_state()
-	if not active then
-		return
-	end
 	ensure_parent(state_file)
 	local f = io.open(state_file, "w")
 	if not f then
 		return
 	end
-	f:write(vim.json.encode({ active_program = active.program, active_session = active.session }))
+	f:write(vim.json.encode({
+		active_program = active and active.program or nil,
+		active_session = active and active.session or nil,
+		welcome_shown = welcome_shown,
+	}))
 	f:close()
+end
+
+--- Has the welcome screen still to be shown?
+---@return boolean
+function M.is_welcome_pending()
+	return not welcome_shown
+end
+
+--- Record that the welcome screen has been shown, and persist it.
+function M.mark_welcome_shown()
+	welcome_shown = true
+	save_state()
 end
 
 --- Reload a program's sessions from its source.
@@ -326,6 +353,7 @@ function M._reset()
 	programs = {}
 	sessions_by_program = {}
 	active = nil
+	welcome_shown = false
 end
 
 --- Override the state file path (useful for tests).

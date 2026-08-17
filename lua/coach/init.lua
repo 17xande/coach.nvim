@@ -48,7 +48,7 @@ function M.start()
 	tracker.start()
 	if progress.is_window_visible() then
 		window.open()
-		if progress.is_welcome_pending() then
+		if programs.is_welcome_pending() then
 			welcome_active = true
 			vim.schedule(function()
 				window.render_welcome(next_key)
@@ -125,7 +125,7 @@ function M.next_set()
 
 	if welcome_active then
 		welcome_active = false
-		progress.mark_welcome_shown()
+		programs.mark_welcome_shown()
 		progress.save()
 		render_current()
 		return
@@ -155,7 +155,7 @@ function M.skip_set()
 
 	if welcome_active then
 		welcome_active = false
-		progress.mark_welcome_shown()
+		programs.mark_welcome_shown()
 		progress.save()
 		render_current()
 		return

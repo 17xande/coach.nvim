@@ -13,9 +13,6 @@ local current_set_index = 1
 local set_counts = {}
 
 ---@type boolean
-local welcome_shown = false
-
----@type boolean
 local window_visible = true
 
 ---@type boolean
@@ -34,7 +31,6 @@ local required_reps = 20
 local function reset_state()
 	current_set_index = 1
 	set_counts = {}
-	welcome_shown = false
 	window_visible = true
 	coaching_active = false
 end
@@ -104,7 +100,6 @@ function M.load()
 
 	current_set_index = data.current_set_index or 1
 	set_counts = data.sets or {}
-	welcome_shown = data.welcome_shown == true
 	window_visible = data.window_visible ~= false
 	coaching_active = data.coaching_active == true
 
@@ -133,7 +128,6 @@ function M.save()
 	local data = {
 		current_set_index = current_set_index,
 		sets = encoded_sets,
-		welcome_shown = welcome_shown,
 		window_visible = window_visible,
 		coaching_active = coaching_active,
 	}
@@ -300,15 +294,6 @@ end
 ---@return number
 function M.get_required_reps()
 	return required_reps
-end
-
----@return boolean
-function M.is_welcome_pending()
-	return not welcome_shown
-end
-
-function M.mark_welcome_shown()
-	welcome_shown = true
 end
 
 ---@param index number

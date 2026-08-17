@@ -164,6 +164,74 @@ describe("programs", function()
 			eq("03-making-changes", programs2.get_active().session)
 		end)
 	end)
+
+	-- The welcome screen is shown once per *user*, so the flag belongs next to the
+	-- active pointer in state.json. It used to live in each session's progress
+	-- file, which meant the welcome screen came back on every new session.
+	describe("welcome flag", function()
+		local function with_state_file(path)
+			for _, mod in ipairs({ "coach.sets", "coach.programs", "coach.sources", "coach.builtin" }) do
+				package.loaded[mod] = nil
+			end
+			local programs = require("coach.programs")
+			programs._set_state_file(path)
+			return programs
+		end
+
+		it("is pending on a fresh start", function()
+			local programs = with_state_file(vim.fn.tempname() .. "_coach_welcome.json")
+			programs.configure({})
+			is_true(programs.is_welcome_pending())
+		end)
+
+		it("stops being pending once marked", function()
+			local programs = with_state_file(vim.fn.tempname() .. "_coach_welcome.json")
+			programs.configure({})
+			programs.mark_welcome_shown()
+			is_false(programs.is_welcome_pending())
+		end)
+
+		it("persists across a restart", function()
+			local path = vim.fn.tempname() .. "_coach_welcome.json"
+			local programs1 = with_state_file(path)
+			programs1.configure({})
+			programs1.mark_welcome_shown()
+
+			local programs2 = with_state_file(path)
+			programs2.configure({})
+			is_false(programs2.is_welcome_pending())
+		end)
+
+		it("does not come back when the session changes", function()
+			local path = vim.fn.tempname() .. "_coach_welcome.json"
+			local programs = with_state_file(path)
+			programs.configure({})
+			programs.mark_welcome_shown()
+			programs.switch("user-manual", "03-making-changes")
+			is_false(programs.is_welcome_pending())
+		end)
+
+		it("stays pending when nothing marked it", function()
+			local path = vim.fn.tempname() .. "_coach_welcome.json"
+			local programs1 = with_state_file(path)
+			programs1.configure({})
+			programs1.switch("user-manual", "03-making-changes")
+
+			local programs2 = with_state_file(path)
+			programs2.configure({})
+			is_true(programs2.is_welcome_pending())
+		end)
+
+		it("survives being marked before any session resolves", function()
+			local path = vim.fn.tempname() .. "_coach_welcome.json"
+			local programs1 = with_state_file(path)
+			programs1.mark_welcome_shown()
+
+			local programs2 = with_state_file(path)
+			programs2.configure({})
+			is_false(programs2.is_welcome_pending())
+		end)
+	end)
 end)
 
 h.summary()
