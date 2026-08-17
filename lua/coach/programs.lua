@@ -274,7 +274,7 @@ function M.all_session_pairs()
 	local out = {}
 	for _, p in ipairs(programs) do
 		for _, s in ipairs(sessions_by_program[p.name] or {}) do
-			table.insert(out, { program = p.name, session = s.name })
+			table.insert(out, { program = p.name, session = s.name, title = s.title })
 		end
 	end
 	return out

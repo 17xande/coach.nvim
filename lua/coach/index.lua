@@ -55,9 +55,23 @@ local function render(current_index, all_counts, required_reps)
 	table.insert(highlights, { 0, 2, #header, "CoachIndexTitle" })
 	table.insert(lines, "")
 
-	-- Subheader: active session name
+	--- A session's own title if it declared one, else its file name. Programs are
+	--- free to name their sessions something more readable than the file stem.
+	---@param program string
+	---@param session_name string
+	---@return string
+	local function session_label(program, session_name)
+		for _, sess in ipairs(programs.sessions(program) or {}) do
+			if sess.name == session_name then
+				return sess.title or sess.name
+			end
+		end
+		return session_name
+	end
+
+	-- Subheader: active session
 	if active_session ~= "" then
-		local sub = "  " .. active_session
+		local sub = "  " .. session_label(program_name, active_session)
 		table.insert(lines, sub)
 		table.insert(highlights, { #lines - 1, 2, #sub, "CoachIndexSession" })
 	end
@@ -127,7 +141,7 @@ local function render(current_index, all_counts, required_reps)
 			table.insert(highlights, { #lines - 1, 2, #section, "CoachIndexTitle" })
 
 			for _, name in ipairs(others) do
-				local line = "    " .. name
+				local line = "    " .. session_label(program_name, name)
 				local line_idx = #lines
 				line_targets[line_idx] = { kind = "session", value = name }
 				table.insert(lines, line)

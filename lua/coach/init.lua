@@ -323,6 +323,11 @@ function M.switch_session(target)
 		vim.ui.select(pairs_list, {
 			prompt = "Coach session:",
 			format_item = function(p)
+				-- A session that names itself shows that name, with the file name kept
+				-- so the entry still matches what :CoachSession takes as an argument.
+				if p.title then
+					return ("%s/%s  %s"):format(p.program, p.session, p.title)
+				end
 				return p.program .. "/" .. p.session
 			end,
 		}, function(choice)

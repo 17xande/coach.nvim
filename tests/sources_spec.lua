@@ -109,6 +109,50 @@ describe("sources.load (local dir)", function()
 		local sessions = sources.load({ name = "nope", source = "/does/not/exist" })
 		eq(0, #sessions)
 	end)
+
+	-- A session may name itself, for the sidebar and the picker to show instead of
+	-- the file stem. The type said so all along; nothing read it.
+	describe("session title", function()
+		local titled = vim.fn.tempname() .. "_coach_titled"
+		vim.fn.mkdir(titled, "p")
+		write(
+			titled .. "/03-gamma.lua",
+			"return { title = 'Third Chapter', { id = 'c.1', title = 'C', exercises = { { exercise = 'b', display = 'b', desc = 'd' } } } }"
+		)
+		write(
+			titled .. "/04-delta.lua",
+			"return { { id = 'd.1', title = 'D', exercises = { { exercise = 'B', display = 'B', desc = 'd' } } } }"
+		)
+		write(
+			titled .. "/05-epsilon.lua",
+			"return { title = 42, { id = 'e.1', title = 'E', exercises = { { exercise = '0', display = '0', desc = 'd' } } } }"
+		)
+
+		local function session(name)
+			for _, s in ipairs(sources.load({ name = "titled", source = titled })) do
+				if s.name == name then
+					return s
+				end
+			end
+			return nil
+		end
+
+		it("is read from the session file", function()
+			eq("Third Chapter", assert(session("03-gamma")).title)
+		end)
+
+		it("is nil when the file does not declare one", function()
+			eq(nil, assert(session("04-delta")).title)
+		end)
+
+		it("is ignored when it is not a string", function()
+			eq(nil, assert(session("05-epsilon")).title)
+		end)
+
+		it("does not become a set", function()
+			eq(1, #assert(session("03-gamma")).sets)
+		end)
+	end)
 end)
 
 describe("sources github deep scan", function()

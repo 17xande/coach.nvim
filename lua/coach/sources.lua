@@ -76,15 +76,22 @@ end
 
 M.valid_set = valid_set
 
---- Load one session file. Returns the (filtered) set list or nil on failure.
+--- Load one session file. Returns the (filtered) set list and the session's own
+--- title, if it declared one, or nil on failure.
+---
+--- A session file returns its sets as a list and may name itself with a `title`
+--- key alongside them: `return { title = "Moving Around", { id = "03.1", ... } }`.
+--- The list part is read with ipairs, so the named key is not mistaken for a set.
 ---@param path string
----@return table[]|nil
+---@return table[]|nil sets
+---@return string|nil title
 local function load_session_file(path)
 	local ok, result = pcall(dofile, path)
 	if not ok or type(result) ~= "table" then
 		vim.notify("coach.nvim: failed to load session " .. path, vim.log.levels.WARN)
 		return nil
 	end
+	local title = type(result.title) == "string" and #result.title > 0 and result.title or nil
 	local sets_list = {}
 	for _, s in ipairs(result) do
 		if valid_set(s) then
@@ -99,7 +106,7 @@ local function load_session_file(path)
 	if #sets_list == 0 then
 		return nil
 	end
-	return sets_list
+	return sets_list, title
 end
 
 --- Session name derived from a file path (stem, no extension).
@@ -188,10 +195,11 @@ function M.load(program)
 
 	local sessions = {}
 	for _, path in ipairs(lua_files) do
-		local sets_list = load_session_file(path)
+		local sets_list, title = load_session_file(path)
 		if sets_list then
 			table.insert(sessions, {
 				name = session_name_from_path(path),
+				title = title,
 				sets = sets_list,
 			})
 		end
