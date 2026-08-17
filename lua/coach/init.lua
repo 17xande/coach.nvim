@@ -84,6 +84,7 @@ function M.stop()
 	tracker.stop()
 	progress.set_window_visible(window.is_open())
 	progress.set_coaching_active(false)
+	window.stop_message()
 	window.close()
 	progress.save()
 	active = false

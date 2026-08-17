@@ -62,31 +62,63 @@ local pending_message = nil
 --- Timer for clearing the message
 local message_timer = nil
 
+--- How long a message stays up, in milliseconds
+local MESSAGE_TIMEOUT = 2000
+
+--- Clear the message and redraw without it.
+local function expire_message()
+	pending_message = nil
+	-- Re-render to clear the message (caller must provide a re-render hook)
+	if M._rerender then
+		M._rerender()
+	end
+end
+
+--- One scheduled wrapper, reused by every restart of the timer.
+local on_message_timeout = vim.schedule_wrap(expire_message)
+
 --- Set a temporary message to show on next render
 ---@param msg string
 function M.set_message(msg)
 	pending_message = msg
 
+	-- The handle is allocated once and restarted. The timeout callback used to
+	-- drop the reference with `message_timer = nil`, which leaks the handle for
+	-- the rest of the session -- one per anti-spam message that fires.
+	if not message_timer then
+		message_timer = vim.uv.new_timer()
+		if not message_timer then
+			return
+		end
+	end
+	message_timer:stop()
+	message_timer:start(MESSAGE_TIMEOUT, 0, on_message_timeout)
+end
+
+--- Drop any pending message and release the timer. Called when coaching stops.
+function M.stop_message()
 	if message_timer then
 		message_timer:stop()
-		message_timer:close()
+		if not message_timer:is_closing() then
+			message_timer:close()
+		end
+		message_timer = nil
 	end
-	message_timer = vim.uv.new_timer()
-	if not message_timer then
-		return
+	pending_message = nil
+end
+
+--- Fire the message timeout now, for tests, instead of waiting 2s.
+function M._expire_message()
+	if message_timer then
+		message_timer:stop()
 	end
-	message_timer:start(
-		2000,
-		0,
-		vim.schedule_wrap(function()
-			pending_message = nil
-			message_timer = nil
-			-- Re-render to clear the message (caller must provide a re-render hook)
-			if M._rerender then
-				M._rerender()
-			end
-		end)
-	)
+	expire_message()
+end
+
+--- The message currently pending, for tests.
+---@return string|nil
+function M._pending_message()
+	return pending_message
 end
 
 --- Render the window contents

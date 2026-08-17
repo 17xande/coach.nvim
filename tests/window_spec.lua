@@ -200,4 +200,65 @@ describe("window", function()
 	end)
 end)
 
+-- =========================================================================
+-- The message timer's libuv handle
+-- =========================================================================
+--
+-- A timer is a handle, not garbage: dropping the reference without :close()
+-- leaves it registered with the event loop for the life of the session, and the
+-- anti-spam message sets one every time it fires. Counting handles is the only
+-- way to see it -- the module local looks the same either way.
+
+local uv = vim.uv or vim.loop
+
+local function count_timers()
+	local n = 0
+	uv.walk(function(handle)
+		if handle:get_type() == "timer" and not handle:is_closing() then
+			n = n + 1
+		end
+	end)
+	return n
+end
+
+describe("message timer", function()
+	it("uses one handle however many messages are set", function()
+		window.set_message("first")
+		local base = count_timers()
+		for i = 1, 20 do
+			window.set_message("message " .. i)
+		end
+		eq(base, count_timers(), "timer handles after 20 more messages")
+	end)
+
+	it("still has one handle after the message expires", function()
+		window.set_message("expiring")
+		local base = count_timers()
+		-- Fire the timeout by hand rather than waiting 2s for it.
+		window._expire_message()
+		window.set_message("next one")
+		eq(base, count_timers(), "timer handles after a message expired")
+	end)
+
+	it("clears the message when it expires", function()
+		window.set_message("expiring")
+		window._expire_message()
+		eq(nil, window._pending_message())
+	end)
+
+	it("closes the handle on stop", function()
+		window.stop_message() -- start from a known state: no handle held
+		local base = count_timers()
+		window.set_message("hello")
+		window.stop_message()
+		eq(base, count_timers(), "timer handles after stop_message")
+	end)
+
+	it("drops the pending message on stop", function()
+		window.set_message("hello")
+		window.stop_message()
+		eq(nil, window._pending_message())
+	end)
+end)
+
 h.summary()
