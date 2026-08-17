@@ -130,6 +130,39 @@ describe("exercise notation", function()
 end)
 
 -- =========================================================================
+-- Creditable, not merely emittable
+-- =========================================================================
+
+--- Emitting is half the question. `:split` emits `ex:split` and always did; what
+--- coach then matched on was `<C-w>s`, the native equivalent track-action reports
+--- alongside it, so set 08.1 could not be completed either. This asks whether the
+--- report a real keypress produces lands back on the exercise that was written.
+describe("every builtin exercise can be credited, not just emitted", function()
+	local emit_mod = require("coach.emit")
+
+	local BY_SESSION = {}
+	do
+		local files = vim.fn.glob(vim.fn.getcwd() .. "/exercise-programs/user-manual/*.lua", false, true)
+		table.sort(files)
+		for _, file in ipairs(files) do
+			BY_SESSION[#BY_SESSION + 1] = { session = vim.fn.fnamemodify(file, ":t:r"), sets = dofile(file) }
+		end
+	end
+
+	it("there are sessions to check at all", function()
+		eq(true, #BY_SESSION > 0)
+	end)
+
+	for _, s in ipairs(BY_SESSION) do
+		for _, entry in ipairs(emit_mod.uncreditable(s.sets)) do
+			it(("%s %s  %s is credited as %s"):format(s.session, entry.set_id, entry.exercise, entry.credited), function()
+				eq(entry.exercise, entry.credited)
+			end)
+		end
+	end
+end)
+
+-- =========================================================================
 -- Negative rule triggers, across every shipped session
 -- =========================================================================
 

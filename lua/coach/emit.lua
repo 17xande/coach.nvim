@@ -127,6 +127,62 @@ function M.unemittable(sets_list)
 	return out
 end
 
+--- Every exercise in `sets_list` that emits fine and still cannot be credited,
+--- because coach matches the report against a different string than the exercise.
+---
+--- Emitting and being credited are two questions, and only the first had a fence.
+--- Set 08.1 drills `:split`, `:close` and `:new`; track-action emits `ex:split` for
+--- each and *also* reports `native = "<C-w>s"`, and coach preferred the native form
+--- unconditionally -- so the exercise emitted perfectly and counted nothing. This
+--- asks the second question: given the report track-action would produce, does
+--- `resolve_match_action` land on the exercise the set actually wrote?
+---
+--- Under the current matching rule this can no longer report anything, because that
+--- rule consults the set's own exercise list first -- which is the fix. It is a
+--- regression fence on the rule, not a way to find bad content, and that is why
+--- `:checkhealth coach` does not run it: there it would only ever print a vacuous
+--- OK, which is what the other checks go out of their way not to do.
+---@param sets_list table[] Set list, as `sets.get` returns them
+---@return { set_id: string, exercise: string, credited: string }[]
+function M.uncreditable(sets_list)
+	local out = {}
+	if not M.is_available() then
+		return out
+	end
+
+	local resolve = require("coach.tracker").resolve_match_action
+	local mappings = mappings_mod()
+	if not mappings then
+		return out
+	end
+
+	for _, set in ipairs(sets_list or {}) do
+		local exercise_set = {}
+		for _, ex in ipairs(set.exercises or {}) do
+			if type(ex.exercise) == "string" then
+				exercise_set[ex.exercise] = true
+			end
+		end
+
+		for _, ex in ipairs(set.exercises or {}) do
+			local action = ex.exercise
+			-- Only ask of exercises that emit at all; a dead one is `unemittable`'s
+			-- to report, and reporting it twice helps nobody.
+			if type(action) == "string" and M.emitted_for(action) == action then
+				-- The report track-action builds: an ex command carries the native
+				-- keys that do the same thing, a parsed action is its own native.
+				local typed_ex = action:match("^ex:(.+)$")
+				local native = typed_ex and mappings.native_for_ex(typed_ex) or action
+				local credited = resolve(action, { native = native }, exercise_set)
+				if credited ~= action then
+					out[#out + 1] = { set_id = set.id, exercise = action, credited = credited }
+				end
+			end
+		end
+	end
+	return out
+end
+
 --- Every negative-rule trigger in `sets_list` that the parser cannot emit.
 ---
 --- The same defect as a dead exercise and just as quiet: a rule whose trigger names

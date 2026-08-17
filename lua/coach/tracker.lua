@@ -59,12 +59,26 @@ local function is_on_cooldown(action)
 end
 
 --- Resolve which action string to use for exercise matching.
---- Prefers data.native (canonical native key) when available,
---- falling back to the raw action string from track-action.
+---
+--- One action can arrive under two names: track-action reports `:split` as
+--- `ex:split` with `native = "<C-w>s"`, so that a `<leader>-` mapped to `:split`
+--- still credits a set drilling `<C-w>s`. Which of the two counts is the *set's*
+--- choice, so the exercise list is consulted first and only then the preference
+--- for the native form.
+---
+--- Preferring native unconditionally is what set 08.1 ran into: it drills `:split`,
+--- `:close` and `:new`, every one of which has a native equivalent, so coach was
+--- looking for `<C-w>s` while the exercise said `ex:split` and nothing ever
+--- matched. The emit fence could not see it either -- track-action emits `ex:split`
+--- perfectly well; it was coach that then went looking for something else.
 ---@param action string Action string from track-action callback
 ---@param data table|nil Data table from track-action (may contain .native)
+---@param exercise_set table<string, any>|nil Exercises of the current set, if known
 ---@return string The action string to match against exercises
-function M.resolve_match_action(action, data)
+function M.resolve_match_action(action, data, exercise_set)
+	if exercise_set and exercise_set[action] then
+		return action
+	end
 	if data and data.native then
 		return data.native
 	end
@@ -262,7 +276,7 @@ end
 ---@param data table
 local function on_action(action, data)
 	local exercise_set = current_exercise_set()
-	local match_action = M.resolve_match_action(action, data)
+	local match_action = M.resolve_match_action(action, data, exercise_set)
 
 	log.debug("on_action", { action = action, native = data and data.native, match = match_action })
 

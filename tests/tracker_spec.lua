@@ -191,6 +191,38 @@ describe("resolve_match_action", function()
 		local result = tracker.resolve_match_action("<C-h>", { native = "<C-w>h" })
 		eq("<C-w>h", result)
 	end)
+
+	-- Preferring `native` unconditionally made every ex exercise with a native
+	-- equivalent uncreditable: set 08.1 drills `:split`, `:close`, `:new`, and
+	-- track-action reports each of those with native = `<C-w>s`/`<C-w>c`/`<C-w>n`,
+	-- so what coach matched on was never what the set asked for. The set decides
+	-- which spelling it is drilling; both remain acceptable.
+	describe("when the current set says which spelling it wants", function()
+		it("credits the ex form when that is what the set drills", function()
+			local tracker = fresh_tracker()
+			local result = tracker.resolve_match_action("ex:split", { native = "<C-w>s" }, { ["ex:split"] = true })
+			eq("ex:split", result)
+		end)
+
+		it("credits the native form when that is what the set drills", function()
+			local tracker = fresh_tracker()
+			local result = tracker.resolve_match_action("ex:split", { native = "<C-w>s" }, { ["<C-w>s"] = true })
+			eq("<C-w>s", result)
+		end)
+
+		it("still prefers native when the set drills neither", function()
+			-- Unchanged: an alternative keybind is resolved further down, and that
+			-- lookup is keyed on the native form.
+			local tracker = fresh_tracker()
+			local result = tracker.resolve_match_action("ex:split", { native = "<C-w>s" }, { ["w"] = true })
+			eq("<C-w>s", result)
+		end)
+
+		it("is unaffected for an action with no native equivalent", function()
+			local tracker = fresh_tracker()
+			eq("ex:quit", tracker.resolve_match_action("ex:quit", {}, { ["ex:quit"] = true }))
+		end)
+	end)
 end)
 
 describe("parse_trigger", function()
