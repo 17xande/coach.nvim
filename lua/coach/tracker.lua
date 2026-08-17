@@ -153,6 +153,16 @@ local function invalidate_rules_cache()
 	rules_cache = nil
 end
 
+--- Clear all per-set runtime state: cooldown history, negative streaks and
+--- the alternatives cache. Called after a reset so stale streaks and cooldowns
+--- don't swallow the user's first presses on the freshly-cleared set.
+function M.reset_runtime()
+	recent_actions = {}
+	reset_negative_streaks()
+	invalidate_rules_cache()
+	alt_cache = nil
+end
+
 --- Tick every rule against `match_action`. Returns the list of rules that
 --- fired this tick (caller should decrement and notify per rule).
 --- A non-matching action resets a rule's streak; a different trigger inside

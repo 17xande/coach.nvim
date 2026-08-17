@@ -182,26 +182,63 @@ function M.prev_set()
 	render_current()
 end
 
-function M.reset_set()
-	if not active then
-		vim.notify("coach.nvim: coaching is not active.", vim.log.levels.WARN)
-		return
+--- Re-render after a reset. Resets are allowed while coaching is stopped,
+--- so only touch the window when it is actually on screen.
+local function after_reset()
+	tracker.reset_runtime()
+	if window.is_open() then
+		if welcome_active then
+			window.render_welcome(next_key)
+		else
+			render_current()
+		end
 	end
+end
 
+--- Clear progress for the current set.
+function M.reset_set()
 	progress.reset_current()
-	render_current()
+	after_reset()
 	vim.notify("coach.nvim: current set reset.", vim.log.levels.INFO)
 end
 
-function M.reset_all()
-	if not active then
-		vim.notify("coach.nvim: coaching is not active.", vim.log.levels.WARN)
+--- Clear progress for every set in the active session.
+function M.reset_session()
+	progress.reset_session()
+	after_reset()
+	local a = programs.get_active()
+	vim.notify("coach.nvim: session reset" .. (a and (" (" .. a.session .. ")") or "") .. ".", vim.log.levels.INFO)
+end
+
+--- Clear progress for every session of the active program.
+--- Destructive across many files, so it asks for confirmation first.
+--- Pass `{ confirm = false }` to skip the prompt (used by tests and scripts).
+---@param opts? { confirm?: boolean }
+function M.reset_program(opts)
+	local a = programs.get_active()
+	if not a then
+		vim.notify("coach.nvim: no active program.", vim.log.levels.WARN)
 		return
 	end
 
-	progress.reset_all()
-	render_current()
-	vim.notify("coach.nvim: all progress reset.", vim.log.levels.INFO)
+	if not opts or opts.confirm ~= false then
+		local n = #programs.sessions(a.program)
+		local prompt = string.format(
+			"Reset ALL progress for program '%s' (%d session%s)?",
+			a.program,
+			n,
+			n == 1 and "" or "s"
+		)
+		-- Default to "No" (choice 2) so a stray <CR> can't wipe progress.
+		if vim.fn.confirm(prompt, "&Yes\n&No", 2, "Question") ~= 1 then
+			vim.notify("coach.nvim: program reset cancelled.", vim.log.levels.INFO)
+			return
+		end
+	end
+
+	progress.reset_program(a.program)
+	after_reset()
+	vim.notify("coach.nvim: program reset (" .. a.program .. ").", vim.log.levels.INFO)
 end
 
 function M.help()
@@ -451,9 +488,13 @@ function M.setup(opts)
 	vim.api.nvim_create_user_command("CoachReset", function()
 		M.reset_set()
 	end, {})
-	vim.api.nvim_create_user_command("CoachResetAll", function()
-		M.reset_all()
+	vim.api.nvim_create_user_command("CoachResetSession", function()
+		M.reset_session()
 	end, {})
+	vim.api.nvim_create_user_command("CoachResetProgram", function(args)
+		-- `:CoachResetProgram!` skips the confirmation prompt.
+		M.reset_program({ confirm = not args.bang })
+	end, { bang = true })
 	vim.api.nvim_create_user_command("CoachSkip", function()
 		M.skip_set()
 	end, {})

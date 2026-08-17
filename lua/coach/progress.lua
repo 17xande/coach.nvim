@@ -122,9 +122,17 @@ function M.save()
 		return
 	end
 
+	-- vim.json.encode turns an empty Lua table into `[]`. Map empties to
+	-- vim.empty_dict() so the file shape stays `{}` for external readers.
+	local encoded_sets = vim.empty_dict()
+	for id, counts in pairs(set_counts) do
+		---@diagnostic disable-next-line: assign-type-mismatch, param-type-mismatch
+		encoded_sets[id] = next(counts) and counts or vim.empty_dict()
+	end
+
 	local data = {
 		current_set_index = current_set_index,
-		sets = set_counts,
+		sets = encoded_sets,
 		welcome_shown = welcome_shown,
 		window_visible = window_visible,
 		coaching_active = coaching_active,
@@ -264,7 +272,26 @@ function M.reset_current()
 	M.save()
 end
 
-function M.reset_all()
+--- Clear all progress for the active session only.
+function M.reset_session()
+	current_set_index = 1
+	set_counts = {}
+	M.save()
+end
+
+--- Clear all progress for every session of `program_name`.
+--- Deletes the sibling session files on disk and clears the in-memory state
+--- of the active session (which is then re-saved as empty).
+---@param program_name string
+function M.reset_program(program_name)
+	local dir = progress_dir .. "/" .. program_name
+	if vim.fn.isdirectory(dir) == 1 then
+		for _, entry in ipairs(vim.fn.readdir(dir)) do
+			if entry:sub(-5) == ".json" then
+				os.remove(dir .. "/" .. entry)
+			end
+		end
+	end
 	current_set_index = 1
 	set_counts = {}
 	M.save()

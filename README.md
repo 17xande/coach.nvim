@@ -188,6 +188,12 @@ working on between sessions.
 | `:CoachSession [program/session]` | Switch the active session (picker when no argument) |
 | `:CoachProgram [program]` | Switch to the first session of a program |
 | `:CoachUpdate [program]` | `git pull` a GitHub-sourced program |
+| `:CoachStart` / `:CoachStop` | Start or stop coaching explicitly |
+| `:CoachReset` | Clear progress for the current **set** |
+| `:CoachResetSession` | Clear progress for the whole active **session** |
+| `:CoachResetProgram[!]` | Clear progress for **every session** of the active program (prompts first; `!` skips the prompt) |
+
+All three reset commands work whether or not coaching is currently running.
 
 Once coaching is started, the floating window appears in the corner of your editor.
 It shows each exercise in the current set, a progress bar, and a rep count. Keys
