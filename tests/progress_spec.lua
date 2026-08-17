@@ -517,5 +517,84 @@ describe("progress", function()
 	end)
 end)
 
+-- =========================================================================
+-- Debounced save
+-- =========================================================================
+--
+-- Progress was written on set advance and on VimLeavePre only, so a session that
+-- ended in a crash (or a `kill`) lost every rep counted since the last advance --
+-- up to a whole set's worth. Every rep cannot be written either: that is a file
+-- write per keystroke. So reps schedule a save a couple of seconds after the last
+-- one.
+
+describe("debounced save", function()
+	--- What is on disk right now for `set_id`, or nil if the file is not there.
+	local function saved_counts(set_id)
+		local f = io.open(tmp_file, "r")
+		if not f then
+			return nil
+		end
+		local content = f:read("*a")
+		f:close()
+		local ok, data = pcall(vim.json.decode, content)
+		if not ok or type(data) ~= "table" then
+			return nil
+		end
+		return (data.sets or {})[set_id]
+	end
+
+	it("does not write on the rep itself", function()
+		cleanup()
+		local p = fresh_progress()
+		p.increment("i")
+		eq(nil, saved_counts("02.2"), "nothing on disk yet")
+	end)
+
+	it("writes once the debounce fires", function()
+		cleanup()
+		local p = fresh_progress()
+		p.increment("i")
+		p._flush_pending_save()
+		local counts = saved_counts("02.2")
+		eq(1, counts and counts.i)
+	end)
+
+	it("a decrement schedules a save too", function()
+		cleanup()
+		local p = fresh_progress()
+		p.increment("i")
+		p.increment("i")
+		p._flush_pending_save()
+		p.decrement("i")
+		p._flush_pending_save()
+		local counts = saved_counts("02.2")
+		eq(1, counts and counts.i)
+	end)
+
+	it("many reps collapse into one pending save", function()
+		cleanup()
+		local p = fresh_progress()
+		for _ = 1, 3 do
+			p.increment("i")
+		end
+		eq(1, p._pending_save_count(), "one scheduled save, not one per rep")
+	end)
+
+	it("flushing with nothing pending is a no-op", function()
+		cleanup()
+		local p = fresh_progress()
+		p._flush_pending_save()
+		eq(nil, saved_counts("02.2"))
+	end)
+
+	it("an explicit save clears the pending one", function()
+		cleanup()
+		local p = fresh_progress()
+		p.increment("i")
+		p.save()
+		eq(false, p._save_pending())
+	end)
+end)
+
 cleanup()
 h.summary()

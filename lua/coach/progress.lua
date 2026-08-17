@@ -111,8 +111,26 @@ function M.load()
 	end
 end
 
+--- How long after the last rep a debounced save fires, in milliseconds
+local SAVE_DEBOUNCE = 2000
+
+--- Timer behind the debounced save. Allocated once and restarted; a handle
+--- dropped without `:close()` stays registered with the event loop.
+---@type uv.uv_timer_t|nil
+local save_timer = nil
+
+--- Whether a debounced save is waiting to fire
+---@type boolean
+local save_pending = false
+
 --- Save progress to the currently-active file.
 function M.save()
+	-- An explicit save satisfies whatever the debounce was waiting to write.
+	save_pending = false
+	if save_timer then
+		save_timer:stop()
+	end
+
 	if not progress_file then
 		return
 	end
@@ -142,6 +160,60 @@ function M.save()
 
 	f:write(json)
 	f:close()
+end
+
+--- Schedule a save a short time after the last rep.
+---
+--- Progress used to be written on set advance and on VimLeavePre only, so a
+--- session that ended in a crash lost every rep since the last advance -- up to a
+--- whole set's worth. Saving on every rep is a file write per keystroke, so reps
+--- push the save out instead, and the last one wins.
+local function schedule_save()
+	if not progress_file then
+		return
+	end
+
+	if not save_timer then
+		save_timer = vim.uv.new_timer()
+		if not save_timer then
+			-- No timer available: write now rather than not at all.
+			M.save()
+			return
+		end
+	end
+
+	save_pending = true
+	save_timer:stop()
+	save_timer:start(
+		SAVE_DEBOUNCE,
+		0,
+		vim.schedule_wrap(function()
+			if save_pending then
+				M.save()
+			end
+		end)
+	)
+end
+
+--- Write a pending debounced save now. For tests, and for anything that needs the
+--- file current without waiting.
+function M._flush_pending_save()
+	if save_pending then
+		M.save()
+	end
+end
+
+--- Is a debounced save waiting to fire?
+---@return boolean
+function M._save_pending()
+	return save_pending
+end
+
+--- How many saves are scheduled at once. One timer is reused, so this is 1 while
+--- a save is pending however many reps scheduled it.
+---@return number
+function M._pending_save_count()
+	return save_pending and 1 or 0
 end
 
 ---@return number
@@ -184,6 +256,7 @@ function M.increment(exercise)
 	end
 
 	counts[exercise] = current + 1
+	schedule_save()
 	return counts[exercise]
 end
 
@@ -209,6 +282,7 @@ function M.decrement(exercise)
 	end
 
 	counts[exercise] = current - 1
+	schedule_save()
 	return counts[exercise]
 end
 
