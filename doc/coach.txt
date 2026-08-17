@@ -310,8 +310,14 @@ Repeating the same key over and over does not count. The last three actions
 are remembered, and an action already among them is refused with a message.
 Reps are meant to come from editing, and holding a key down is not editing.
 
+                                                             *coach-negatives*
 Some sets also declare negative rules: an exercise the set is trying to
 replace (arrow keys, `l` spam) decrements progress rather than adding to it.
+
+Known gap: a trigger naming an arrow key does not fire yet. track-action.nvim
+reports special keys as raw bytes, so `<Down>` arrives as `<80>kd` and never
+matches a trigger written as `<Down>`. Use `h`/`l` triggers until that is
+fixed there; see |track-action-special-keys|.
 
 ==============================================================================
 12. WRITING A PROGRAM                                         *coach-programs*

@@ -21,8 +21,11 @@
 --   "[count]l"   → counted `l`, e.g. `4l`, `7l`  (note: literal "[count]")
 -- These are distinct triggers — `[count]l` is a separate emit from `l`.
 --
--- Note: `<Right>`/`<Left>`/`<Home>`/`<End>` only fire if track-action.nvim
--- emits them as standalone actions in your environment. `h`/`l` are reliable.
+-- Note: `<Right>`/`<Left>`/`<Home>`/`<End>` triggers do NOT fire today, and the
+-- reason is known: Vim reports a special key to track-action as 0x80 plus two
+-- bytes, and it translates only bytes 1-31, so `<Down>` is emitted as "<80>kd".
+-- A trigger naming `<Down>` therefore never matches. `h`/`l` are reliable; use
+-- those until track-action decodes K_SPECIAL (see :help track-action-special-keys).
 
 return {
 	{
