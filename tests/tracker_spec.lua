@@ -422,4 +422,73 @@ describe("resolve_alternative", function()
 	end)
 end)
 
+-- =========================================================================
+-- Per-set caches are scoped to the session, not to the id
+-- =========================================================================
+--
+-- Set ids are unique within a session, not across programs: a third-party
+-- program is free to ship its own "03.1". Keyed on the id alone, the compiled
+-- negative rules and the alternatives map of one session's 03.1 were served for
+-- another's.
+
+describe("per-set cache keys", function()
+	--- One session file holding a single set with the given id and one negative
+	--- rule, so two sessions can collide on the id while differing in content.
+	local function make_program(id, trigger)
+		local dir = vim.fn.tempname() .. "_coach_collide"
+		vim.fn.mkdir(dir, "p")
+		local f = assert(io.open(dir .. "/only.lua", "w"))
+		f:write(([[
+return {
+  {
+    id = %q,
+    title = "Collides",
+    exercises = { { exercise = "w", display = "w", desc = "Word" } },
+    negatives = { { triggers = { %q }, decrement = { "w" } } },
+  },
+}
+]]):format(id, trigger))
+		f:close()
+		return dir
+	end
+
+	local function fresh()
+		for _, mod in ipairs({ "coach.sets", "coach.programs", "coach.sources", "coach.builtin", "coach.tracker" }) do
+			package.loaded[mod] = nil
+		end
+		local programs = require("coach.programs")
+		programs._set_state_file(vim.fn.tempname() .. "_coach_collide_state.json")
+		return programs, require("coach.tracker")
+	end
+
+	it("two sessions sharing a set id get their own compiled rules", function()
+		local programs, tracker = fresh()
+		local dir_a = make_program("03.1", "l")
+		local dir_b = make_program("03.1", "h")
+
+		programs.configure({
+			programs = { { name = "a", source = dir_a }, { name = "b", source = dir_b } },
+			active = "a/only",
+		})
+		local rules_a = tracker._compiled_rules_for_active()
+		eq(1, rules_a[1] and rules_a[1].triggers.l and 1 or 0, "session a's trigger is l")
+
+		programs.switch("b", "only")
+		local rules_b = tracker._compiled_rules_for_active()
+		eq(1, rules_b[1] and rules_b[1].triggers.h and 1 or 0, "session b's trigger is h")
+		eq(nil, rules_b[1] and rules_b[1].triggers.l, "and not session a's")
+	end)
+
+	it("the cache key names the session as well as the set", function()
+		local programs, tracker = fresh()
+		local dir_a = make_program("03.1", "l")
+		programs.configure({ programs = { { name = "a", source = dir_a } }, active = "a/only" })
+
+		local key = tracker._set_key({ id = "03.1" })
+		is_true(key:find("03.1", 1, true) ~= nil, "key mentions the set id: " .. key)
+		is_true(key:find("only", 1, true) ~= nil, "key mentions the session: " .. key)
+		is_true(key:find("a", 1, true) ~= nil, "key mentions the program: " .. key)
+	end)
+end)
+
 h.summary()

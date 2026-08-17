@@ -3,6 +3,7 @@
 local sets = require("coach.sets")
 local keybinds = require("coach.keybinds")
 local log = require("coach.log")
+local programs = require("coach.programs")
 local progress = require("coach.progress")
 local window = require("coach.window")
 
@@ -21,8 +22,8 @@ local recent_actions = {}
 
 --- Cached reverse-alternatives map for the current set.
 --- Maps formatted-display alternative (e.g. "<leader>|") → canonical exercise (e.g. "<C-w>v").
---- Invalidated whenever the set id changes.
----@type { id: string, reverse: table<string, string> }|nil
+--- Invalidated whenever the cache key changes; see `set_key`.
+---@type { key: string, reverse: table<string, string> }|nil
 local alt_cache = nil
 
 --- Next keybind string (set from init.lua)
@@ -104,8 +105,21 @@ end
 --- @field streak { action: string, count: number }  -- mutable per-rule runtime state
 
 --- Cache of compiled rules for the current set.
----@type { id: string, rules: CompiledRule[] }|nil
+---@type { key: string, rules: CompiledRule[] }|nil
 local rules_cache = nil
+
+--- Cache key for a set.
+---
+--- Ids are unique inside a session, not across programs -- a third-party program
+--- is free to ship its own "03.1" -- so keying on the id alone served one
+--- session's compiled rules and alternatives for another's.
+---@param set table
+---@return string
+local function set_key(set)
+	local active = programs.get_active()
+	local prefix = active and (active.program .. "/" .. active.session .. "/") or ""
+	return prefix .. tostring(set and set.id)
+end
 
 --- Build (or return cached) compiled rules for the active set.
 ---@return CompiledRule[]
@@ -114,7 +128,8 @@ local function compiled_rules()
 	if not s then
 		return {}
 	end
-	if rules_cache and rules_cache.id == s.id then
+	local key = set_key(s)
+	if rules_cache and rules_cache.key == key then
 		return rules_cache.rules
 	end
 
@@ -134,7 +149,7 @@ local function compiled_rules()
 			})
 		end
 	end
-	rules_cache = { id = s.id, rules = rules }
+	rules_cache = { key = key, rules = rules }
 	return rules
 end
 
@@ -195,6 +210,12 @@ end
 function M._reset_rules_cache()
 	rules_cache = nil
 end
+function M._set_key(set)
+	return set_key(set)
+end
+function M._compiled_rules_for_active()
+	return compiled_rules()
+end
 function M._compile_rules_for(set)
 	local rules = {}
 	for _, raw in ipairs(set.negatives or {}) do
@@ -215,12 +236,13 @@ end
 
 --- Look up `action` in the alternatives of `set`.
 --- Returns the canonical exercise if `action` is a known alternative, else nil.
---- Result is cached per set id.
+--- Result is cached per session and set id; see `set_key`.
 ---@param action string
 ---@param set table
 ---@return string|nil
 local function resolve_alternative(action, set)
-	if not alt_cache or alt_cache.id ~= set.id then
+	local key = set_key(set)
+	if not alt_cache or alt_cache.key ~= key then
 		local forward = keybinds.get_alternatives(set)
 		local reverse = {}
 		for canonical, display_list in pairs(forward) do
@@ -228,7 +250,7 @@ local function resolve_alternative(action, set)
 				reverse[disp] = canonical
 			end
 		end
-		alt_cache = { id = set.id, reverse = reverse }
+		alt_cache = { key = key, reverse = reverse }
 		invalidate_rules_cache()
 	end
 	return alt_cache.reverse[action]

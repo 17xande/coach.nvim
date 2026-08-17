@@ -446,6 +446,9 @@ function M.setup(opts)
 	-- Wire the switch hook: save/load progress for the new session, re-render.
 	programs._on_switch = function(program_name, session_name)
 		progress.switch(program_name, session_name)
+		-- Cooldown history and negative streaks belong to the set that was on
+		-- screen, not to the new session's first set.
+		tracker.reset_runtime()
 		if active and window.is_open() then
 			vim.schedule(render_current)
 		end

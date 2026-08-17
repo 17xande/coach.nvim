@@ -102,7 +102,9 @@ function M.configure(opts, on_ready)
 	-- Always include the builtin program (first) unless the user already declared it.
 	local has_builtin = false
 	for _, p in ipairs(configured) do
-		if p.name == "user-manual" or p.source == "builtin" or p.source == nil and p.name == "user-manual" then
+		-- The third clause this used to have -- `p.source == nil and p.name ==
+		-- "user-manual"` -- could never add anything the first did not already catch.
+		if p.name == "user-manual" or p.source == "builtin" then
 			has_builtin = true
 			break
 		end
