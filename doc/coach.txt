@@ -348,7 +348,9 @@ sets:
     }
 <
 Point coach.nvim at it with |coach-opt-programs|. Files load in filename
-order, which is why the builtin ones are numbered.
+order, which is why the builtin ones are numbered. A program's root and its
+immediate subdirectories are both scanned, so `basics/01-windows.lua` is found
+whether the program is a local path or a github repo.
 
                                                          *coach-exercise-name*
 `exercise` must be exactly what track-action.nvim emits for those keys, which
@@ -368,7 +370,10 @@ See track-action.nvim's docs for the action format.
 
 Invalid sets are skipped with a warning rather than taking the file down: a
 set needs a non-empty `id`, `title` and `exercises`, and every exercise needs
-`exercise`, `display` and `desc`.
+`exercise`, `display` and `desc`. The warning is one per file, however many
+sets in it are wrong, and it says which sets and why - a program written
+against an older spelling of the set table is wrong in every set at once, and
+one message says everything nine of them would.
 
 ==============================================================================
 13. PROGRESS FILES                                            *coach-progress*

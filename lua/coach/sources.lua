@@ -44,31 +44,45 @@ end
 
 M.parse_github = parse_github
 
---- Validate a set table. Returns true if it has the required fields.
+--- Validate a set table, and say what is wrong with it if anything is.
+---
+--- The reason is the point: nine "skipped invalid set: win.1" warnings on startup
+--- named neither the fault nor the fix, and the fault was one rename -- a program
+--- written against the older `actions`/`action` spelling.
 ---@param s any
----@return boolean
+---@return boolean ok
+---@return string|nil reason nil when ok
 local function valid_set(s)
 	if type(s) ~= "table" then
-		return false
+		return false, "not a table (got " .. type(s) .. ")"
 	end
 	if type(s.id) ~= "string" or #s.id == 0 then
-		return false
+		return false, "no `id` string"
 	end
 	if type(s.title) ~= "string" or #s.title == 0 then
-		return false
+		return false, "no `title` string"
 	end
 	if type(s.exercises) ~= "table" or #s.exercises == 0 then
-		return false
+		-- The one mistake worth naming outright, because it is a rename and not a
+		-- debugging session: `actions` of `action` entries is what sets looked like
+		-- before the vocabulary settled.
+		if type(s.actions) == "table" then
+			return false, "has `actions`, which is now `exercises` of `exercise` entries"
+		end
+		return false, "no non-empty `exercises` list"
 	end
-	for _, e in ipairs(s.exercises) do
-		if
-			type(e) ~= "table"
-			or type(e.exercise) ~= "string"
-			or #e.exercise == 0
-			or type(e.display) ~= "string"
-			or type(e.desc) ~= "string"
-		then
-			return false
+	for i, e in ipairs(s.exercises) do
+		local where = ("exercise %d"):format(i)
+		if type(e) ~= "table" then
+			return false, where .. " is not a table"
+		end
+		if type(e.exercise) ~= "string" or #e.exercise == 0 then
+			return false, where .. (type(e.action) == "string" and " has `action`, which is now `exercise`" or " has no `exercise` string")
+		end
+		for _, field in ipairs({ "display", "desc" }) do
+			if type(e[field]) ~= "string" then
+				return false, ("%s (%s) has no `%s` string"):format(where, e.exercise, field)
+			end
 		end
 	end
 	return true
@@ -93,15 +107,32 @@ local function load_session_file(path)
 	end
 	local title = type(result.title) == "string" and #result.title > 0 and result.title or nil
 	local sets_list = {}
+	local skipped = {}
 	for _, s in ipairs(result) do
-		if valid_set(s) then
+		local ok_set, reason = valid_set(s)
+		if ok_set then
 			table.insert(sets_list, s)
 		else
-			vim.notify(
-				"coach.nvim: skipped invalid set in " .. path .. ": " .. vim.inspect(s and s.id or "?"),
-				vim.log.levels.WARN
-			)
+			local id = type(s) == "table" and type(s.id) == "string" and s.id or "?"
+			table.insert(skipped, ("%s (%s)"):format(id, reason))
 		end
+	end
+
+	-- One warning per file, however many sets are wrong. A program written against
+	-- an older spelling of the set table is wrong in every set at once, and nine
+	-- notifications at startup say nothing that one does not.
+	if #skipped > 0 then
+		local shown = vim.list_slice(skipped, 1, math.min(#skipped, 3))
+		local more = #skipped > #shown and (" (+%d more)"):format(#skipped - #shown) or ""
+		vim.notify(
+			("coach.nvim: skipped %d invalid set(s) in %s: %s%s"):format(
+				#skipped,
+				path,
+				table.concat(shown, ", "),
+				more
+			),
+			vim.log.levels.WARN
+		)
 	end
 	if #sets_list == 0 then
 		return nil
@@ -187,10 +218,12 @@ function M.load(program)
 		local dir = builtin.default_program_dir()
 		lua_files = dir and list_lua_files(dir) or {}
 	elseif k == "github" then
-		-- Scan root + all immediate subdirs so any repo layout works.
 		lua_files = list_lua_files_deep(M.cache_dir(program.name))
 	else
-		lua_files = list_lua_files(vim.fn.expand(program.source))
+		-- Root plus immediate subdirs, the same as a github program: a repo whose
+		-- sessions live in a subdirectory used to lose all of them when the same
+		-- checkout was named as a local path instead of cloned.
+		lua_files = list_lua_files_deep(vim.fn.expand(program.source))
 	end
 
 	local sessions = {}

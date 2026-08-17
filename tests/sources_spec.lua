@@ -49,6 +49,159 @@ describe("sources.valid_set", function()
 	it("rejects malformed exercise entries", function()
 		is_false(sources.valid_set({ id = "x", title = "t", exercises = { { exercise = "w" } } }))
 	end)
+	-- The second return value is what the warning says. A boolean alone produced
+	-- "skipped invalid set: win.1" nine times over on startup, naming neither what
+	-- was wrong nor what to do -- and the answer was that the whole program used the
+	-- older `actions`/`action` spelling.
+	describe("says why it rejected the set", function()
+		---@param set any
+		---@return string
+		local function why(set)
+			local _, reason = sources.valid_set(set)
+			return reason or ""
+		end
+
+		it("gives no reason for a valid set", function()
+			local ok, reason = sources.valid_set({
+				id = "x",
+				title = "t",
+				exercises = { { exercise = "w", display = "w", desc = "d" } },
+			})
+			is_true(ok)
+			eq(nil, reason)
+		end)
+
+		it("names a missing id", function()
+			local reason = why({ title = "t", exercises = { { exercise = "w", display = "w", desc = "d" } } })
+			is_true(reason:find("id") ~= nil, reason)
+		end)
+
+		it("names a missing title", function()
+			local reason = why({ id = "x", exercises = { { exercise = "w", display = "w", desc = "d" } } })
+			is_true(reason:find("title") ~= nil, reason)
+		end)
+
+		it("names a missing exercises list", function()
+			local reason = why({ id = "x", title = "t" })
+			is_true(reason:find("exercises") ~= nil, reason)
+		end)
+
+		it("points at the older actions spelling when that is what it finds", function()
+			-- The one third-party program in play used it, and the fix is a rename,
+			-- not a debugging session.
+			local reason = why({
+				id = "win.1",
+				title = "Opening Splits",
+				actions = { { action = "<C-w>s", display = "Ctrl-W s", desc = "Split" } },
+			})
+			is_true(reason:find("actions") ~= nil, reason)
+			is_true(reason:find("exercises") ~= nil, reason)
+		end)
+
+		it("names which exercise of the list is at fault, and what it lacks", function()
+			local reason = why({
+				id = "x",
+				title = "t",
+				exercises = {
+					{ exercise = "w", display = "w", desc = "d" },
+					{ exercise = "e", display = "e" },
+				},
+			})
+			is_true(reason:find("2") ~= nil, reason)
+			is_true(reason:find("desc") ~= nil, reason)
+		end)
+
+		it("names a missing exercise string", function()
+			local reason = why({ id = "x", title = "t", exercises = { { display = "w", desc = "d" } } })
+			is_true(reason:find("exercise") ~= nil, reason)
+		end)
+
+		it("says a set is not a table at all", function()
+			is_true(#why("nope") > 0)
+		end)
+	end)
+end)
+
+describe("sources.load warnings", function()
+	local dir = vim.fn.tempname() .. "_coach_warn_dir"
+	vim.fn.mkdir(dir .. "/nested", "p")
+
+	local function write(path, contents)
+		local f = assert(io.open(path, "w"))
+		f:write(contents)
+		f:close()
+	end
+
+	-- Three sets in the old spelling, one good: the shape of the real case.
+	write(
+		dir .. "/01-stale.lua",
+		[[return {
+			{ id = 'win.1', title = 'A', actions = { { action = '<C-w>s', display = 's', desc = 'd' } } },
+			{ id = 'win.2', title = 'B', actions = { { action = '<C-w>v', display = 'v', desc = 'd' } } },
+			{ id = 'win.3', title = 'C', actions = { { action = '<C-w>n', display = 'n', desc = 'd' } } },
+			{ id = 'win.4', title = 'D', exercises = { { exercise = 'w', display = 'w', desc = 'd' } } },
+		}]]
+	)
+	write(
+		dir .. "/nested/02-deep.lua",
+		"return { { id = 'n.1', title = 'N', exercises = { { exercise = 'b', display = 'b', desc = 'd' } } } }"
+	)
+
+	--- Capture what `load` notifies.
+	---@return string[]
+	local function warnings_from_load()
+		local captured = {}
+		local original = vim.notify
+		---@diagnostic disable-next-line: duplicate-set-field
+		vim.notify = function(msg)
+			captured[#captured + 1] = msg
+		end
+		local ok, err = pcall(sources.load, { name = "warn", source = dir })
+		vim.notify = original
+		is_true(ok, tostring(err))
+		return captured
+	end
+
+	it("warns once per file, not once per set", function()
+		-- Nine notifications at startup is what made this worth changing.
+		eq(1, #warnings_from_load())
+	end)
+
+	it("says how many sets it skipped", function()
+		local msg = warnings_from_load()[1]
+		is_true(msg:find("3") ~= nil, msg)
+	end)
+
+	it("names the file and the offending sets, with reasons", function()
+		local msg = warnings_from_load()[1]
+		is_true(msg:find("01-stale", 1, true) ~= nil, msg)
+		is_true(msg:find("win.1", 1, true) ~= nil, msg)
+		is_true(msg:find("actions", 1, true) ~= nil, msg)
+	end)
+
+	it("keeps the valid sets of a file that also had invalid ones", function()
+		local sessions = sources.load({ name = "warn", source = dir })
+		for _, s in ipairs(sessions) do
+			if s.name == "01-stale" then
+				eq(1, #s.sets)
+				eq("win.4", s.sets[1].id)
+				return
+			end
+		end
+		error("01-stale should still have loaded")
+	end)
+
+	-- A github program scans root plus immediate subdirectories "so any repo layout
+	-- works"; a local directory read only its root, so the same repo checked out
+	-- locally lost every session in a subdirectory. One rule for both.
+	it("scans immediate subdirectories of a local dir too", function()
+		local sessions = sources.load({ name = "warn", source = dir })
+		local names = {}
+		for _, s in ipairs(sessions) do
+			names[s.name] = true
+		end
+		is_true(names["02-deep"] == true, "02-deep not loaded from a subdirectory")
+	end)
 end)
 
 describe("sources.load (builtin)", function()
