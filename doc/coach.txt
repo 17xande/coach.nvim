@@ -1,0 +1,392 @@
+*coach.txt*	Coach yourself through the Neovim user manual
+
+Author:  Alexandre Figueiredo
+License: MIT
+
+==============================================================================
+CONTENTS                                                      *coach-contents*
+
+  1. Introduction ............................. |coach.nvim|
+  2. Requirements ............................. |coach-requirements|
+  3. Setup .................................... |coach-setup|
+  4. Options .................................. |coach-options|
+  5. Commands ................................. |coach-commands|
+  6. Default keybinds ......................... |coach-keybinds|
+  7. The window ............................... |coach-window|
+  8. The index sidebar ........................ |coach-index|
+  9. Shadowed exercises ....................... |coach-shadowed|
+ 10. Alternative keybinds ..................... |coach-alternatives|
+ 11. Counting rules ........................... |coach-counting|
+ 12. Writing a program ........................ |coach-programs|
+ 13. Progress files ........................... |coach-progress|
+ 14. Health ................................... |coach-health|
+
+==============================================================================
+1. INTRODUCTION                                                   *coach.nvim*
+
+coach.nvim drills you through the Neovim user manual by watching which keys
+you actually press.
+
+Each drill is a *set*: a handful of related keystrokes with a rep target.
+Press the key in the course of your normal editing and the row fills up.
+Nothing is simulated and there is no scratch buffer to type into - the reps
+come from the work you were doing anyway.
+
+The hierarchy, which the rest of this file uses:
+
+  program    a source of sessions (the builtin `user-manual`, a directory,
+             or a github repo)
+  session    one .lua file inside a program; an ordered list of sets
+  set        one entry in a session, e.g. `03.1` "Word Movement"
+  exercise   one keystroke target with reps, e.g. `w`
+  rep        one counted press of an exercise
+
+==============================================================================
+2. REQUIREMENTS                                           *coach-requirements*
+
+- Neovim 0.10 or newer.
+- track-action.nvim, which does the keystroke parsing.
+
+coach.nvim is a consumer of track-action.nvim's API: track-action intercepts
+every keystroke, parses Vim's command grammar and emits a normalized action
+string, and coach.nvim counts those strings against the active set. Without
+it the plugin still loads - commands, keybinds and the index all work - but
+coaching cannot start, and |:checkhealth| says so.
+
+==============================================================================
+3. SETUP                                                         *coach-setup*
+
+                                                               *coach.setup()*
+>lua
+    require("coach").setup()
+<
+Everything has a default; the call above is enough. A fuller example, with
+every option at its default value:
+>lua
+    require("coach").setup({
+      required_reps = 20,
+      progress_dir = vim.fn.stdpath("data") .. "/coach/progress",
+      log_file = nil,
+      programs = { { name = "user-manual" } },
+      active = nil,
+      window = {
+        width = 34,
+        height = 8,
+        position = "top-right",
+      },
+      keybinds = {
+        toggle  = "<leader>kk",
+        window  = "<leader>kw",
+        next    = "<leader>kn",
+        prev    = "<leader>kp",
+        help    = "<leader>kh",
+        skip    = "<leader>ks",
+        index   = "<leader>ki",
+        session = "<leader>kS",
+      },
+    })
+<
+==============================================================================
+4. OPTIONS                                                     *coach-options*
+
+                                                     *coach-opt-required_reps*
+required_reps ~
+        number, default 20
+
+        Reps needed per exercise before it counts as done. A set may
+        override this for itself with its own `required_reps`, which is how
+        sets of heavier commands ask for fewer reps.
+
+                                                      *coach-opt-progress_dir*
+progress_dir ~
+        string, default `stdpath("data") .. "/coach/progress"`
+
+        Where progress files are written. See |coach-progress|. It must be
+        writable; |:checkhealth| checks by writing to it rather than by
+        guessing at permissions.
+
+                                                          *coach-opt-log_file*
+log_file ~
+        string|nil, default nil
+
+        When set, debug logging is appended to this path. Off by default.
+
+                                                          *coach-opt-programs*
+programs ~
+        table, default `{ { name = "user-manual" } }`
+
+        The programs to load. Each entry is `{ name = ..., source = ... }`
+        where `source` is:
+
+          omitted or "builtin"    the sessions shipped with this plugin
+          a path                  a local directory of .lua session files
+          "github:owner/repo"     cloned on first use, then cached
+
+        The builtin program is always present whether you list it or not, so
+        adding your own does not displace it.
+>lua
+        programs = {
+          { name = "user-manual" },
+          { name = "extras", source = "~/vim-drills" },
+          { name = "pack", source = "github:someone/coach-drills" },
+        }
+<
+                                                            *coach-opt-active*
+active ~
+        string|nil, default nil
+
+        Which session to start on, as `program/session`, e.g.
+        `"user-manual/02-moving-around"`. Without it, the last session you
+        were on is restored; failing that, the first session of the first
+        program.
+
+                                                            *coach-opt-window*
+window ~
+        table, default `{ width = 34, height = 8, position = "top-right" }`
+
+        Geometry of the floating window. See |coach-window|.
+
+          width      number
+          height     number
+          position   "top-right", "top-left", "bottom-right", "bottom-left"
+          row, col   explicit placement; wins over `position`
+
+                                                          *coach-opt-keybinds*
+keybinds ~
+        table, see |coach-keybinds|
+
+        Overrides the default mappings. Each entry is a left-hand side; see
+        the table in |coach-keybinds| for the names.
+
+==============================================================================
+5. COMMANDS                                                   *coach-commands*
+
+                                                                 *:CoachStart*
+:CoachStart             Start coaching: register with track-action.nvim and
+                        open the window.
+
+                                                                  *:CoachStop*
+:CoachStop              Stop coaching. Progress is saved.
+
+                                                                *:CoachToggle*
+:CoachToggle            Start if stopped, stop if started.
+
+                                                                *:CoachWindow*
+:CoachWindow            Show or hide the floating window, without stopping
+                        the counting behind it.
+
+                                                                  *:CoachNext*
+:CoachNext              Move to the next set. Refuses while the current set
+                        is incomplete - use |:CoachSkip| to leave one behind.
+
+                                                                  *:CoachPrev*
+:CoachPrev              Move to the previous set.
+
+                                                                  *:CoachSkip*
+:CoachSkip              Move to the next set whether or not this one is done.
+
+                                                                  *:CoachHelp*
+:CoachHelp              Open |:help| at the manual section the current set
+                        drills.
+
+                                                                 *:CoachIndex*
+:CoachIndex             Toggle the index sidebar. See |coach-index|.
+
+                                                               *:CoachSession*
+:CoachSession [{program/session}]
+                        Switch session. With no argument, opens a picker.
+                        Completes program/session pairs.
+
+                                                               *:CoachProgram*
+:CoachProgram [{program}]
+                        Switch to the first session of a program. With no
+                        argument, opens a picker.
+
+                                                                *:CoachUpdate*
+:CoachUpdate [{program}]
+                        Re-fetch a github program (`git pull` in its cache).
+
+                                                                 *:CoachReset*
+:CoachReset             Clear progress for the current set.
+
+                                                          *:CoachResetSession*
+:CoachResetSession      Clear progress for every set of the active session.
+
+                                                          *:CoachResetProgram*
+:CoachResetProgram[!]   Clear progress for every session of the active
+                        program, deleting their progress files. Asks first,
+                        defaulting to No; `!` skips the prompt.
+
+The reset commands work whether or not coaching is active, deliberately:
+wanting to clear progress is not a reason to have to start a session first.
+
+==============================================================================
+6. DEFAULT KEYBINDS                                           *coach-keybinds*
+
+        keybinds.toggle    <leader>kk    |:CoachToggle|
+        keybinds.window    <leader>kw    |:CoachWindow|
+        keybinds.next      <leader>kn    |:CoachNext|
+        keybinds.prev      <leader>kp    |:CoachPrev|
+        keybinds.help      <leader>kh    |:CoachHelp|
+        keybinds.skip      <leader>ks    |:CoachSkip|
+        keybinds.index     <leader>ki    |:CoachIndex|
+        keybinds.session   <leader>kS    |:CoachSession|
+
+Set any of them to a different left-hand side through |coach-opt-keybinds|.
+The reset commands have no default mapping.
+
+==============================================================================
+7. THE WINDOW                                                   *coach-window*
+
+A small floating window, 34x8 in the top right by default, listing the
+current set: each exercise, what it does, a progress bar and the rep count.
+
+It is not focusable, so it never takes the cursor from the buffer you are
+working in - which is the point, since the reps come from that work. Resize
+or move it with |coach-opt-window|.
+
+Completing a set does not advance automatically. The window says so and waits
+for |:CoachNext|, because being moved on mid-edit by a keystroke you were not
+thinking about is worse than pressing one key.
+
+==============================================================================
+8. THE INDEX SIDEBAR                                             *coach-index*
+
+|:CoachIndex| opens a sidebar listing every set in the active session, plus
+the other sessions in the program. `<CR>` jumps to whatever the cursor is on,
+`q` or `<Esc>` dismisses it.
+
+        ▶   the current set
+        ✓   complete
+        ●   started
+            not started
+
+Opening the sidebar closes the floating window and dismissing it brings the
+window back, so the two never compete for the same corner. The sidebar
+updates as reps are counted.
+
+==============================================================================
+9. SHADOWED EXERCISES                                         *coach-shadowed*
+
+An exercise whose key you have remapped is shadowed: pressing it does
+whatever your mapping does, not what the manual describes. Those rows are
+marked and do not have to be filled for the set to count as complete - there
+is no point demanding reps of a key that no longer performs the exercise.
+
+Two known gaps, both deliberate and both pinned by tests:
+
+- A mapping on a prefix of the keys is not detected. Remapping `d` stops `dw`
+  working, but only the whole sequence is checked.
+- Neovim's own default mappings count as shadows. matchit ships mapped to
+  `%`, so `[count]%` reports shadowed out of the box even though the mapping
+  does the same thing.
+
+==============================================================================
+10. ALTERNATIVE KEYBINDS                                  *coach-alternatives*
+
+If you have your own mapping for an exercise, pressing it still counts, and
+the window shows it beside the default keys.
+
+The mapping's right-hand side is run through track-action.nvim's parser and
+the resulting action compared, rather than the text compared: that is what
+lets `<leader>W` mapped to `5w` count for `[count]w`, and `<cmd>vsplit<cr>`
+count for `<C-w>v`. Mappings whose right-hand side is not keys at all -
+|<Plug>| targets and |:map-expression| - are ignored.
+
+==============================================================================
+11. COUNTING RULES                                            *coach-counting*
+
+An exercise is an action string, which is what track-action.nvim emits, not a
+literal key sequence. Two consequences:
+
+- A count is part of the action. `w` and `[count]w` are separate exercises:
+  `w` credits the first, `3w` the second. Sets that drill counts exist for
+  that reason.
+- A typed operand is not. `f{char}` is one exercise and any target character
+  credits it, because the skill is `f`, not the letter after it.
+
+                                                             *coach-anti-spam*
+Repeating the same key over and over does not count. The last three actions
+are remembered, and an action already among them is refused with a message.
+Reps are meant to come from editing, and holding a key down is not editing.
+
+Some sets also declare negative rules: an exercise the set is trying to
+replace (arrow keys, `l` spam) decrements progress rather than adding to it.
+
+==============================================================================
+12. WRITING A PROGRAM                                         *coach-programs*
+
+A program is a directory of .lua session files. Each file returns a list of
+sets:
+>lua
+    -- ~/vim-drills/01-basics.lua
+    return {
+      title = "Basics",          -- optional; shown instead of the file name
+      {
+        id = "01.1",
+        title = "Word Movement",
+        help_tag = "03.1",       -- optional; what :CoachHelp opens
+        required_reps = 10,      -- optional; overrides the global setting
+        exercises = {
+          { exercise = "w",  display = "w",  desc = "Word forward" },
+          { exercise = "ge", display = "ge", desc = "Prev word end" },
+        },
+        negatives = {            -- optional
+          {
+            triggers = { "[4]l" },   -- 4 consecutive `l` presses
+            decrement = { "w" },
+            message = "Use w instead",
+          },
+        },
+      },
+    }
+<
+Point coach.nvim at it with |coach-opt-programs|. Files load in filename
+order, which is why the builtin ones are numbered.
+
+                                                         *coach-exercise-name*
+`exercise` must be exactly what track-action.nvim emits for those keys, which
+is not always what you type: `fx` emits `f{char}`, `3w` emits `[count]w`,
+`guu` and `gugu` both emit `guu`. An exercise naming a string that is never
+emitted can never be completed - the key is pressed, nothing is credited, and
+the set blocks |:CoachNext| forever.
+
+That failure is silent, so check for it: `:checkhealth coach` reports every
+exercise in the active session that cannot be emitted. See track-action.nvim's
+documentation for the action format.
+
+Invalid sets are skipped with a warning rather than taking the file down: a
+set needs a non-empty `id`, `title` and `exercises`, and every exercise needs
+`exercise`, `display` and `desc`.
+
+==============================================================================
+13. PROGRESS FILES                                            *coach-progress*
+
+One JSON file per session, under |coach-opt-progress_dir|:
+>
+    {progress_dir}/{program}/{session}.json
+<
+It holds the current set index and the per-exercise counts. Which session is
+active, and whether the welcome screen has been shown, live separately in
+`{stdpath("data")}/coach/state.json` - those are properties of you, not of a
+session.
+
+Progress is written when a set changes, on |VimLeavePre|, and about two
+seconds after the last rep. The last of those exists so that a session ending
+in a crash does not lose everything counted since the last set change; it is
+debounced rather than written per rep, because a rep is a keystroke.
+
+==============================================================================
+14. HEALTH                                                      *coach-health*
+
+>vim
+    :checkhealth coach
+<
+Checks that track-action.nvim is installed and still exposes the functions
+coach.nvim shares with it, that a session is active with sets loaded, that
+every configured program resolved to at least one session, that the progress
+directory is writable, and that every exercise of the active session can
+actually be emitted. The last of those is the one worth running after writing
+your own program - see |coach-exercise-name|.
+
+vim:tw=78:ts=8:noet:ft=help:norl:

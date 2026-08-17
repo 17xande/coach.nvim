@@ -1,11 +1,15 @@
 NVIM := nvim --headless -u tests/minimal_init.lua
 
-.PHONY: test test-sets test-progress test-window test-tracker test-keybinds test-index test-sources test-programs test-reset test-emit test-health
+.PHONY: test test-sets test-progress test-window test-tracker test-keybinds test-index test-sources test-programs test-reset test-emit test-health test-doc
 
-test: test-sets test-progress test-window test-tracker test-keybinds test-index test-sources test-programs test-reset test-emit test-health
+test: test-sets test-progress test-window test-tracker test-keybinds test-index test-sources test-programs test-reset test-emit test-health test-doc
 
 test-health:
 	$(NVIM) -c "luafile tests/health_spec.lua" -c "qa"
+
+# Fails if a command or setup option has no help tag in doc/coach.txt.
+test-doc:
+	$(NVIM) -c "luafile tests/doc_spec.lua" -c "qa"
 
 # Checks every builtin exercise against track-action's real parser. Skips itself if
 # track-action.nvim is neither on the runtimepath nor a sibling checkout.
