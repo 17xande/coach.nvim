@@ -201,6 +201,119 @@ describe("window", function()
 end)
 
 -- =========================================================================
+-- Column alignment is a display-width question, not a byte-count one
+-- =========================================================================
+--
+-- The columns were padded with `#str`, which counts bytes. A description with a
+-- typographic dash or any other multi-byte character is shorter on screen than in
+-- bytes, so its row's progress bar sat left of everyone else's.
+
+describe("column alignment", function()
+	--- Rendered lines of the float.
+	local function lines()
+		return vim.api.nvim_buf_get_lines(assert(window._buf()), 0, -1, false)
+	end
+
+	--- Which screen column the progress bar starts at on the line containing `needle`.
+	---@return number|nil
+	local function bar_column(needle)
+		for _, line in ipairs(lines()) do
+			if line:find(needle, 1, true) then
+				local byte_index = line:find("\u{2588}", 1, true) or line:find("\u{2591}", 1, true)
+				if byte_index then
+					return vim.fn.strdisplaywidth(line:sub(1, byte_index - 1))
+				end
+			end
+		end
+		return nil
+	end
+
+	local multibyte_set = {
+		id = "01.1",
+		title = "Alignment",
+		exercises = {
+			{ exercise = "a", display = "a", desc = "plain ascii" },
+			{ exercise = "b", display = "b", desc = "em\u{2014}dash \u{2014} here" },
+			{ exercise = "c", display = "c", desc = "ascii again" },
+		},
+	}
+
+	it("puts every progress bar in the same screen column", function()
+		window.open()
+		window.render(multibyte_set, { a = 1, b = 1, c = 1 }, 10, "<leader>kn")
+
+		local ascii = bar_column("plain ascii")
+		local wide = bar_column("dash")
+		local ascii2 = bar_column("ascii again")
+		is_true(ascii ~= nil, "found the ascii row's bar")
+		eq(ascii, wide, "multibyte row's bar column")
+		eq(ascii, ascii2, "second ascii row's bar column")
+		window.close()
+	end)
+end)
+
+-- =========================================================================
+-- Window geometry
+-- =========================================================================
+
+describe("geometry", function()
+	local function config_of()
+		return vim.api.nvim_win_get_config(assert(window._win()))
+	end
+
+	it("defaults to 34x8 in the top right", function()
+		window.configure({})
+		window.close()
+		window.open()
+		local cfg = config_of()
+		eq(34, cfg.width)
+		eq(8, cfg.height)
+		eq(1, cfg.row)
+		eq(vim.o.columns - 34 - 2, cfg.col)
+		window.close()
+	end)
+
+	it("takes a configured width and height", function()
+		window.configure({ width = 50, height = 12 })
+		window.close()
+		window.open()
+		local cfg = config_of()
+		eq(50, cfg.width)
+		eq(12, cfg.height)
+		window.close()
+	end)
+
+	it("puts the window bottom-left when asked", function()
+		window.configure({ width = 20, height = 5, position = "bottom-left" })
+		window.close()
+		window.open()
+		local cfg = config_of()
+		eq(2, cfg.col)
+		eq(vim.o.lines - 5 - 4, cfg.row)
+		window.close()
+	end)
+
+	it("an explicit row and col win over the position", function()
+		window.configure({ width = 20, height = 5, position = "top-right", row = 7, col = 3 })
+		window.close()
+		window.open()
+		local cfg = config_of()
+		eq(7, cfg.row)
+		eq(3, cfg.col)
+		window.close()
+	end)
+
+	it("ignores an unknown position rather than erroring", function()
+		window.configure({ position = "sideways" })
+		window.close()
+		window.open()
+		is_true(window.is_open())
+		window.close()
+		window.configure({})
+	end)
+end)
+
+-- =========================================================================
 -- The message timer's libuv handle
 -- =========================================================================
 --

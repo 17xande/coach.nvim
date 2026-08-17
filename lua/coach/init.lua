@@ -429,6 +429,11 @@ end
 ---   log_file?: string,
 ---   programs?: { name: string, source?: string }[],
 ---   active?: string,
+---   window?: {
+---     width?: number, height?: number,
+---     position?: "top-right"|"top-left"|"bottom-right"|"bottom-left",
+---     row?: number, col?: number,
+---   },
 ---   keybinds?: {
 ---     toggle?: string, window?: string, next?: string, prev?: string,
 ---     help?: string, skip?: string, index?: string, session?: string,
@@ -443,6 +448,8 @@ function M.setup(opts)
 		required_reps = opts.required_reps,
 		progress_dir = opts.progress_dir,
 	})
+
+	window.configure(opts.window)
 
 	-- Wire the switch hook: save/load progress for the new session, re-render.
 	programs._on_switch = function(program_name, session_name)

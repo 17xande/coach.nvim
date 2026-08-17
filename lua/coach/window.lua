@@ -55,6 +55,67 @@ local function progress_bar(count, total, width)
 	return string.rep("\u{2588}", filled), string.rep("\u{2591}", empty)
 end
 
+--- Pad `s` on the right to `width` **display** columns.
+---
+--- Columns used to be padded with `#str` and `%-Ns`, which count bytes, so a
+--- description holding a typographic dash -- shorter on screen than in bytes --
+--- pushed its row's progress bar left of every other row's. Extmark columns are
+--- still byte offsets, which is why the highlight maths below keeps using `#`.
+---@param s string
+---@param width number Target display width
+---@return string
+local function pad_display(s, width)
+	local pad = width - vim.fn.strdisplaywidth(s)
+	return s .. string.rep(" ", math.max(pad, 0))
+end
+
+--- Floating window geometry, overridable through `setup({ window = ... })`.
+---@class coach.WindowConfig
+---@field width number
+---@field height number
+---@field position "top-right"|"top-left"|"bottom-right"|"bottom-left"
+---@field row number|nil Explicit row, which wins over `position`
+---@field col number|nil Explicit column, which wins over `position`
+local DEFAULT_GEOMETRY = {
+	width = 34,
+	height = 8,
+	position = "top-right",
+	row = nil,
+	col = nil,
+}
+
+---@type coach.WindowConfig
+local geometry = vim.deepcopy(DEFAULT_GEOMETRY)
+
+--- Set the window geometry. Anything not given falls back to the default, so
+--- `configure({})` restores it.
+---@param opts table|nil
+function M.configure(opts)
+	geometry = vim.tbl_extend("force", vim.deepcopy(DEFAULT_GEOMETRY), opts or {})
+end
+
+--- Where the float goes, in editor coordinates.
+---@return number width, number height, number row, number col
+local function resolve_geometry()
+	local width = math.max(math.floor(geometry.width or DEFAULT_GEOMETRY.width), 1)
+	local height = math.max(math.floor(geometry.height or DEFAULT_GEOMETRY.height), 1)
+
+	-- The same margins the window has always used: 2 columns from the side, one row
+	-- from the top, and four from the bottom to clear the statusline and cmdline.
+	local right = math.max(vim.o.columns - width - 2, 0)
+	local bottom = math.max(vim.o.lines - height - 4, 0)
+	local corners = {
+		["top-right"] = { row = 1, col = right },
+		["top-left"] = { row = 1, col = 2 },
+		["bottom-right"] = { row = bottom, col = right },
+		["bottom-left"] = { row = bottom, col = 2 },
+	}
+	-- An unknown position is not worth refusing to open over.
+	local corner = corners[geometry.position] or corners[DEFAULT_GEOMETRY.position]
+
+	return width, height, geometry.row or corner.row, geometry.col or corner.col
+end
+
 --- Pending message to display (set externally, cleared after render)
 ---@type string|nil
 local pending_message = nil
@@ -157,8 +218,8 @@ function M.render(set, counts, required_reps, next_key, shadowed, alternatives)
 		if not shadowed[e.exercise] and alternatives[e.exercise] and #alternatives[e.exercise] > 0 then
 			d = d .. " / " .. table.concat(alternatives[e.exercise], " / ")
 		end
-		display_width = math.max(display_width, #d + 2)
-		desc_width = math.max(desc_width, #e.desc + 2)
+		display_width = math.max(display_width, vim.fn.strdisplaywidth(d) + 2)
+		desc_width = math.max(desc_width, vim.fn.strdisplaywidth(e.desc) + 2)
 	end
 
 	-- Exercise lines
@@ -169,8 +230,8 @@ function M.render(set, counts, required_reps, next_key, shadowed, alternatives)
 		if not shadowed[e.exercise] and alternatives[e.exercise] and #alternatives[e.exercise] > 0 then
 			display_text = display_text .. " / " .. table.concat(alternatives[e.exercise], " / ")
 		end
-		local display = string.format("%-" .. display_width .. "s", display_text)
-		local desc_str = string.format("%-" .. desc_width .. "s", e.desc)
+		local display = pad_display(display_text, display_width)
+		local desc_str = pad_display(e.desc, desc_width)
 		local line_idx = #lines
 
 		if shadowed[e.exercise] then
@@ -377,9 +438,7 @@ function M.open(title)
 		vim.api.nvim_set_option_value("swapfile", false, { buf = buf })
 	end
 
-	local editor_width = vim.o.columns
-	local win_width = 34
-	local win_height = 8
+	local win_width, win_height, win_row, win_col = resolve_geometry()
 
 	local display_title = title and (" " .. title .. " ") or " Coach "
 
@@ -387,8 +446,8 @@ function M.open(title)
 		relative = "editor",
 		width = win_width,
 		height = win_height,
-		col = editor_width - win_width - 2,
-		row = 1,
+		col = win_col,
+		row = win_row,
 		style = "minimal",
 		border = "rounded",
 		title = { { display_title, "CoachTitle" } },
@@ -398,6 +457,17 @@ function M.open(title)
 	})
 
 	vim.api.nvim_set_option_value("winhighlight", "Normal:CoachNormal,FloatBorder:CoachBorder", { win = win })
+end
+
+--- The float's buffer and window, for tests.
+---@return number|nil
+function M._buf()
+	return buf
+end
+
+---@return number|nil
+function M._win()
+	return win
 end
 
 --- Close the floating window
