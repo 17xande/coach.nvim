@@ -401,7 +401,12 @@ function M.start()
 		return
 	end
 
-	-- TODO: why pcall here? can't we just require this plugin once early in this file and use the refenrece?
+	-- Deliberately a pcall here, and deliberately not a require at the top of the
+	-- file: a top-level require of a missing plugin raises while coach.nvim is
+	-- being loaded, which takes the whole plugin down -- commands, keybinds, the
+	-- index, everything -- over a dependency that is only needed once the user
+	-- actually starts coaching. Failing here instead means the plugin loads, says
+	-- what is missing, and coaching simply does not start.
 	local ok, track_action = pcall(require, "track-action")
 	if not ok then
 		vim.notify("coach.nvim: track-action.nvim is required but not found", vim.log.levels.ERROR)

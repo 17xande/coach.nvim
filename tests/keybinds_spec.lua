@@ -318,6 +318,47 @@ describe("keybinds", function()
 				vim.keymap.del("n", "<leader>E")
 			end)
 		end)
+
+		-- coach used to keep its own 14-entry `ex_to_native` table. It now asks
+		-- track-action's `mappings.native_for_ex`, which knows 28 commands and
+		-- accepts a bang and arguments, so these cases work rather than being
+		-- silently unrecognised.
+		describe("ex commands resolved through track-action", function()
+			--- Is `<leader>Q` mapped to `rhs` an alternative for `exercise`?
+			local function is_alternative(rhs, exercise)
+				vim.keymap.set("n", "<leader>Q", rhs, {})
+				local kb = fresh_keybinds()
+				local alts = kb.get_alternatives({
+					exercises = { { exercise = exercise, display = exercise, desc = "x" } },
+				})
+				vim.keymap.del("n", "<leader>Q")
+				return alts[exercise] ~= nil
+			end
+
+			it("recognises <cmd>vsplit<cr> as <C-w>v", function()
+				is_true(is_alternative("<cmd>vsplit<cr>", "<C-w>v"))
+			end)
+
+			it("recognises a command coach's own table never had", function()
+				is_true(is_alternative("<cmd>vnew<cr>", "<C-w>v"))
+			end)
+
+			it("recognises a wincmd coach's own table never had", function()
+				is_true(is_alternative("<cmd>wincmd p<cr>", "<C-w>p"))
+			end)
+
+			it("recognises a command with an argument", function()
+				is_true(is_alternative("<cmd>vsplit foo.txt<cr>", "<C-w>v"))
+			end)
+
+			it("recognises a command with a bang", function()
+				is_true(is_alternative("<cmd>split!<cr>", "<C-w>s"))
+			end)
+
+			it("does not invent an equivalence for an unrelated command", function()
+				is_false(is_alternative("<cmd>Telescope find_files<cr>", "<C-w>v"))
+			end)
+		end)
 	end or function() end)
 end)
 

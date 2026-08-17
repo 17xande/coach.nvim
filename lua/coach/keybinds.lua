@@ -2,29 +2,6 @@
 
 local M = {}
 
---TODO: Not sure what's happening here, shouldn't this be read from the current sesssion?
---What if the users' shortcuts are different?
---
---- Map of ex commands to their native key equivalents.
---- Used to detect alternative keybindings that resolve to exercise actions.
-local ex_to_native = {
-	["wincmd h"] = "<C-w>h",
-	["wincmd j"] = "<C-w>j",
-	["wincmd k"] = "<C-w>k",
-	["wincmd l"] = "<C-w>l",
-	["wincmd w"] = "<C-w>w",
-	vsplit = "<C-w>v",
-	vs = "<C-w>v",
-	split = "<C-w>s",
-	sp = "<C-w>s",
-	close = "<C-w>c",
-	only = "<C-w>o",
-	["wincmd n"] = "<C-w>n",
-	tabnext = "gt",
-	tabprevious = "gT",
-	tabprev = "gT",
-}
-
 --- Convert a key string to internal bytes for reliable comparison.
 ---@param key string
 ---@return string
@@ -41,6 +18,30 @@ end
 local function track_action()
 	local ok, commands = pcall(require, "track-action.commands")
 	return ok and commands or nil
+end
+
+--- track-action's mapping resolver, or nil if it is not installed. Same reasoning
+--- as `track_action` above.
+---@return table|nil
+local function track_action_mappings()
+	local ok, mappings = pcall(require, "track-action.mappings")
+	return ok and mappings or nil
+end
+
+--- The native keys an ex command is another name for: `vsplit` -> `<C-w>v`.
+---
+--- This is track-action's table, not a copy of it. coach kept its own 14 entries,
+--- which had drifted from track-action's 28 -- `vnew`, `wincmd p` and the rest were
+--- missing here, so a mapping to one of them was not recognised as an alternative
+--- for the exercise it performs. The question in the TODO this replaces --- whether
+--- these should come from the session --- answers itself: `:vsplit` is the same as
+--- `<C-w>v` in every Vim, so it belongs with the plugin that reads Neovim's own
+--- command tables, not in drill content.
+---@param cmd string
+---@return string|nil
+local function native_for_ex(cmd)
+	local mappings = track_action_mappings()
+	return mappings and mappings.native_for_ex(cmd) or nil
 end
 
 --- The keys a user actually presses for an exercise: an action string minus the
@@ -109,16 +110,17 @@ end
 ---@param rhs string The right-hand side of a mapping
 ---@return string|nil native The native key equivalent, or nil if unrecognizable
 local function resolve_native(rhs)
-	--TODO: don't know what's going on in here, get AI to explain.
-	--
-	-- Try <Cmd>...<CR> pattern
+	-- A right-hand side that runs an ex command comes in two spellings --
+	-- `<Cmd>vsplit<CR>` and the older `:vsplit<CR>` -- and both mean "run this
+	-- command", so the command text is pulled out of either and looked up as keys.
+	-- The case in the patterns is whatever the mapping was defined with, hence
+	-- `[Cc][Mm][Dd]`.
 	local cmd_match = rhs:match("<[Cc][Mm][Dd]>(.+)<[Cc][Rr]>")
 	if not cmd_match then
-		-- Try :...<CR> pattern
 		cmd_match = rhs:match("^:(.+)<[Cc][Rr]>")
 	end
 	if cmd_match then
-		return ex_to_native[vim.trim(cmd_match)]
+		return native_for_ex(cmd_match)
 	end
 
 	-- Direct key sequence (e.g. <C-h> mapped to <C-w>h): ask the parser what those
