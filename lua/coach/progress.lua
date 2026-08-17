@@ -365,6 +365,12 @@ function M.reset_program(program_name)
 	M.save()
 end
 
+--- The directory progress files live under. Used by `:checkhealth coach`.
+---@return string
+function M.get_progress_dir()
+	return progress_dir
+end
+
 ---@return number
 function M.get_required_reps()
 	return required_reps

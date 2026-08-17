@@ -1,8 +1,11 @@
 NVIM := nvim --headless -u tests/minimal_init.lua
 
-.PHONY: test test-sets test-progress test-window test-tracker test-keybinds test-index test-sources test-programs test-reset test-emit
+.PHONY: test test-sets test-progress test-window test-tracker test-keybinds test-index test-sources test-programs test-reset test-emit test-health
 
-test: test-sets test-progress test-window test-tracker test-keybinds test-index test-sources test-programs test-reset test-emit
+test: test-sets test-progress test-window test-tracker test-keybinds test-index test-sources test-programs test-reset test-emit test-health
+
+test-health:
+	$(NVIM) -c "luafile tests/health_spec.lua" -c "qa"
 
 # Checks every builtin exercise against track-action's real parser. Skips itself if
 # track-action.nvim is neither on the runtimepath nor a sibling checkout.

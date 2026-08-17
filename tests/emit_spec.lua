@@ -36,53 +36,12 @@ if not ok_parser then
 end
 require("track-action.config").setup({ debug = false })
 
---- Split an action string into the keys the tracker would hand the parser.
---- `<C-w>` is one key; `[count]` and `{char}` are decorations, replaced first.
----@param str string
----@return string[]
-local function split_keys(str)
-	local keys, i = {}, 1
-	while i <= #str do
-		if str:sub(i, i) == "<" then
-			local close = str:find(">", i, true)
-			if close then
-				keys[#keys + 1] = str:sub(i, close)
-				i = close + 1
-			else
-				keys[#keys + 1] = str:sub(i, i)
-				i = i + 1
-			end
-		else
-			keys[#keys + 1] = str:sub(i, i)
-			i = i + 1
-		end
-	end
-	return keys
-end
-
---- The keystrokes a user would press to perform an exercise: a count becomes a
---- concrete digit, an operand a concrete character.
----@param exercise string
----@return string[]
-local function keystrokes_for(exercise)
-	local typed = exercise:gsub("%[count%]", "3"):gsub("{[^}]*}", "a")
-	return split_keys(typed)
-end
-
---- What the parser emits for those keystrokes.
----@param exercise string
----@return string|nil
-local function emitted_for(exercise)
-	local parser = parser_mod.new()
-	local action
-	for _, key in ipairs(keystrokes_for(exercise)) do
-		local result = parser:feed_key(key, "n")
-		if result then
-			action = result
-		end
-	end
-	return action
-end
+-- The keystroke-splitting and the parser call live in `coach.emit`, because
+-- `:checkhealth coach` asks the same question at runtime and two implementations of
+-- "what does this exercise emit" would eventually disagree. What this spec owns is
+-- the *content* check below.
+local emit = require("coach.emit")
+local emitted_for = emit.emitted_for
 
 --- Every exercise of every builtin session, in file order.
 ---@return table[] { session, set_id, exercise, display }
