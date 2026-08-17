@@ -17,7 +17,7 @@ return {
 		exercises = {
 			{ exercise = "cc", display = "cc", desc = "Change line" },
 			{ exercise = "C", display = "C", desc = "Change to EOL" },
-			{ exercise = "r", display = "r", desc = "Replace char" },
+			{ exercise = "r{char}", display = "r{char}", desc = "Replace char" },
 			{ exercise = "s", display = "s", desc = "Substitute char" },
 		},
 	},

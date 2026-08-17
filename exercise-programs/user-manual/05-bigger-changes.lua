@@ -8,8 +8,8 @@ return {
 		title = "Macros",
 		help_tag = "10.1",
 		exercises = {
-			{ exercise = "q", display = "q{a-z}", desc = "Record macro" },
-			{ exercise = "@", display = "@{a-z}", desc = "Replay macro" },
+			{ exercise = "q{register}", display = "q{register}", desc = "Record macro into a-z" },
+			{ exercise = "@{register}", display = "@{register}", desc = "Replay macro from a-z" },
 			{ exercise = "@@", display = "@@", desc = "Replay last macro" },
 		},
 	},

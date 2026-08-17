@@ -39,7 +39,9 @@ return {
 		help_tag = "21.3",
 		exercises = {
 			{ exercise = "ex:oldfiles", display = ":oldfiles", desc = "List recent files" },
-			{ exercise = "'0", display = "'0", desc = "Pos on last Vim exit" },
+			-- '0 is the position on last exit, but a mark jump is reported as
+			-- '{mark} whichever mark it was, so that is what can be counted.
+			{ exercise = "'{mark}", display = "'{mark}", desc = "'0 is pos on last Vim exit" },
 			{ exercise = "ex:browse", display = ":browse oldfiles", desc = "Browse recent files" },
 			{ exercise = "ex:wshada", display = ":wshada", desc = "Write ShaDa file" },
 			{ exercise = "ex:rshada", display = ":rshada", desc = "Read ShaDa file" },
@@ -119,7 +121,7 @@ return {
 		help_tag = "23.3",
 		exercises = {
 			{ exercise = "ga", display = "ga", desc = "Show char value" },
-			{ exercise = "go", display = "{N}go", desc = "Go to byte N" },
+			{ exercise = "[count]go", display = "[count]go", desc = "Go to byte N" },
 		},
 	},
 
@@ -195,7 +197,7 @@ return {
 		title = "Virtual Replace",
 		help_tag = "25.5",
 		exercises = {
-			{ exercise = "gr", display = "gr{c}", desc = "Virtual replace char" },
+			{ exercise = "gr{char}", display = "gr{char}", desc = "Virtual replace char" },
 			{ exercise = "gR", display = "gR", desc = "Virtual replace mode" },
 		},
 	},
@@ -235,7 +237,10 @@ return {
 		title = "Folding",
 		help_tag = "28.2",
 		exercises = {
-			{ exercise = "zf", display = "zf{motion}", desc = "Create fold" },
+			-- zf is an operator, so `zf` alone is never a completed action: it waits
+			-- for a motion. Coach counts action strings, not families, so the
+			-- exercise names one concrete fold -- this line and the next.
+			{ exercise = "zfj", display = "zfj", desc = "Create fold over 2 lines" },
 			{ exercise = "zo", display = "zo", desc = "Open fold" },
 			{ exercise = "zc", display = "zc", desc = "Close fold" },
 			{ exercise = "zO", display = "zO", desc = "Open recursive" },

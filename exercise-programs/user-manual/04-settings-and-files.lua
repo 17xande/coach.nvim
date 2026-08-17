@@ -101,8 +101,9 @@ return {
 		help_tag = "07.3",
 		exercises = {
 			{ exercise = "<C-^>", display = "Ctrl-^", desc = "Alternate file" },
-			{ exercise = "`\"", display = "`\"", desc = "Pos when last left file" },
-			{ exercise = "`.", display = "`.", desc = "Pos of last change" },
+			-- `" (last exit) and `. (last change) are one exercise: track-action
+			-- reports any mark jump as `{mark}, so they cannot be counted apart.
+			{ exercise = "`{mark}", display = "`{mark}", desc = "`\" last exit, `. last change" },
 		},
 	},
 	{

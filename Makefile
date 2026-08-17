@@ -1,8 +1,13 @@
 NVIM := nvim --headless -u tests/minimal_init.lua
 
-.PHONY: test test-sets test-progress test-window test-tracker test-keybinds test-index test-sources test-programs test-reset
+.PHONY: test test-sets test-progress test-window test-tracker test-keybinds test-index test-sources test-programs test-reset test-emit
 
-test: test-sets test-progress test-window test-tracker test-keybinds test-index test-sources test-programs test-reset
+test: test-sets test-progress test-window test-tracker test-keybinds test-index test-sources test-programs test-reset test-emit
+
+# Checks every builtin exercise against track-action's real parser. Skips itself if
+# track-action.nvim is neither on the runtimepath nor a sibling checkout.
+test-emit:
+	$(NVIM) -c "luafile tests/emit_spec.lua" -c "qa"
 
 test-reset:
 	$(NVIM) -c "luafile tests/reset_spec.lua" -c "qa"
