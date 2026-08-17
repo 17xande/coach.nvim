@@ -235,6 +235,24 @@ function M.open(on_select, on_close)
 	end, opts)
 end
 
+--- Redraw the sidebar against the current progress, if it is open.
+---
+--- It used to render once, at open, so reps counted (or a reset performed) while
+--- it was up left it showing the state it had when it opened. Called from the
+--- tracker's post-increment path and from `init`'s `after_reset`.
+function M.refresh()
+	if not M.is_open() then
+		return
+	end
+	render(progress.get_set_index(), progress.get_all_set_counts(), progress.get_required_reps())
+end
+
+--- The sidebar's buffer, for tests.
+---@return number|nil
+function M._buf()
+	return buf
+end
+
 --- Close the index window
 function M.close()
 	if win and vim.api.nvim_win_is_valid(win) then

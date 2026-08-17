@@ -1,6 +1,7 @@
 -- Bridge to track-action.nvim
 
 local sets = require("coach.sets")
+local index = require("coach.index")
 local keybinds = require("coach.keybinds")
 local log = require("coach.log")
 local programs = require("coach.programs")
@@ -378,6 +379,11 @@ local function on_action(action, data)
 				window.render(cur, progress.get_counts(), reps, next_key, sh, alts)
 			end
 		end
+
+		-- The sidebar is the float's alternative, not its companion: while it is
+		-- up there is no float to update, and it used to keep showing the counts
+		-- it had when it opened.
+		index.refresh()
 
 		-- Notify on set completion
 		if not was_complete and now_complete then

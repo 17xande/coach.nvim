@@ -187,6 +187,7 @@ end
 --- so only touch the window when it is actually on screen.
 local function after_reset()
 	tracker.reset_runtime()
+	index.refresh()
 	if window.is_open() then
 		if welcome_active then
 			window.render_welcome(next_key)
