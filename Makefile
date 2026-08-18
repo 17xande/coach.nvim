@@ -1,44 +1,29 @@
 NVIM := nvim --headless -u tests/minimal_init.lua
 
-.PHONY: test test-sets test-progress test-window test-tracker test-keybinds test-index test-sources test-programs test-reset test-emit test-health test-doc
+# Every spec, discovered rather than listed, so adding one cannot leave it
+# unrun. `make test-emit` still works: see the pattern rule below.
+SPECS := $(sort $(wildcard tests/*_spec.lua))
 
-test: test-sets test-progress test-window test-tracker test-keybinds test-index test-sources test-programs test-reset test-emit test-health test-doc
+# A spec that drives keys can hang inside nvim_feedkeys, which is synchronous C
+# that no Lua watchdog can interrupt, so the wall clock is the only backstop.
+# And `qa!`, never `qa`: a spec that leaves a modified buffer turns a plain :qa
+# into a "No write since last change" prompt, and headless then waits forever.
+TIMEOUT := timeout 120
 
-test-health:
-	$(NVIM) -c "luafile tests/health_spec.lua" -c "qa"
+.PHONY: test check
 
-# Fails if a command or setup option has no help tag in doc/coach.txt.
-test-doc:
-	$(NVIM) -c "luafile tests/doc_spec.lua" -c "qa"
+test:
+	@for spec in $(SPECS); do \
+		echo "=== $$spec"; \
+		$(TIMEOUT) $(NVIM) -c "luafile $$spec" -c "qa!" || exit 1; \
+	done
 
-# Checks every builtin exercise against track-action's real parser. Skips itself if
-# track-action.nvim is neither on the runtimepath nor a sibling checkout.
-test-emit:
-	$(NVIM) -c "luafile tests/emit_spec.lua" -c "qa"
+# One spec by name: `make test-tracker` runs tests/tracker_spec.lua.
+test-%:
+	$(TIMEOUT) $(NVIM) -c "luafile tests/$*_spec.lua" -c "qa!"
 
-test-reset:
-	$(NVIM) -c "luafile tests/reset_spec.lua" -c "qa"
-
-test-sources:
-	$(NVIM) -c "luafile tests/sources_spec.lua" -c "qa"
-
-test-programs:
-	$(NVIM) -c "luafile tests/programs_spec.lua" -c "qa"
-
-test-sets:
-	$(NVIM) -c "luafile tests/sets_spec.lua" -c "qa"
-
-test-progress:
-	$(NVIM) -c "luafile tests/progress_spec.lua" -c "qa"
-
-test-window:
-	$(NVIM) -c "luafile tests/window_spec.lua" -c "qa"
-
-test-tracker:
-	$(NVIM) -c "luafile tests/tracker_spec.lua" -c "qa"
-
-test-keybinds:
-	$(NVIM) -c "luafile tests/keybinds_spec.lua" -c "qa"
-
-test-index:
-	$(NVIM) -c "luafile tests/index_spec.lua" -c "qa"
+# Static analysis. lua-language-server comes from PATH (mise), not from Mason:
+# the Mason path is an artifact of one machine's Neovim install.
+check:
+	lua-language-server --check lua/ --checklevel=Warning \
+		--configpath=$(CURDIR)/.luarc.json --logpath=/tmp/lua-ls-check-coach
