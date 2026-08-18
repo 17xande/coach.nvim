@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make test)",
+      "Bash(make check)",
+      "Bash(make test-doc)",
+      "Bash(make test-emit)",
+      "Bash(make test-health)",
+      "Bash(make test-index)",
+      "Bash(make test-keybinds)",
+      "Bash(make test-programs)",
+      "Bash(make test-progress)",
+      "Bash(make test-reset)",
+      "Bash(make test-sets)",
+      "Bash(make test-sources)",
+      "Bash(make test-tracker)",
+      "Bash(make test-window)",
+      "Bash(lua-language-server --check *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath // empty' | { read -r f; case \"$f\" in */lua/*.lua) ;; *) exit 0 ;; esac; root=\"${f%%/lua/*}\"; command -v lua-language-server >/dev/null 2>&1 || exit 0; out=$(lua-language-server --check \"$root/lua\" --checklevel=Warning --configpath=\"$root/.luarc.json\" --logpath=\"/tmp/lua-ls-hook-$(basename \"$root\")\" 2>&1 | tr '\\r' '\\n' | sed 's/\\x1b\\[[0-9;]*m//g' | grep -vE '^[[:space:]]*$|^Initializing|^[[:space:]]*>+=*[[:space:]]*[0-9]+/[0-9]+'); case \"$out\" in *'no problems found'*) exit 0 ;; esac; printf 'lua-language-server --check found problems:\\n%s\\n' \"$out\" >&2; exit 2; }",
+            "timeout": 60,
+            "statusMessage": "lua-language-server --check"
+          }
+        ]
+      }
+    ]
+  }
+}
