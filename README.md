@@ -11,15 +11,21 @@ muscle memory.
 - 🔢 **Rep counting** — each exercise must be pressed a configurable number of times before you can advance
 - 🪟 **Live floating window** — a non-intrusive panel that shows your progress bars and exercise status as you work
 - 🚫 **Shadow detection** — if you've remapped a key (e.g. `gd` for LSP), coach.nvim knows and won't count it or block your progress
+- 🗺️ **Your own mappings count** — press your `<leader>` binding for an exercise and it still credits the rep
 - 📋 **Set index sidebar** — browse all sets at a glance and jump to any one directly
 - 🎒 **Custom programs** — add your own sessions from a local directory or clone them straight from a GitHub repo
 - 💾 **Per-session progress** — switch between sessions without mixing up your progress
-- 🔗 **Powered by track-action.nvim** — delegates all keystroke interception and grammar parsing to a dedicated plugin
+- 🔗 **Powered by track-action.nvim** — all keystroke tracking is delegated to a dedicated plugin
 
 ## ⚡️ Requirements
 
-- Neovim >= 0.9.0
+- Neovim >= 0.13 (needs the `CmdAtom` event)
 - [track-action.nvim](https://github.com/17xande/track-action.nvim) — required for keystroke tracking
+
+> **Note:** a rewrite in progress moves command recognition onto Neovim 0.13's
+> `CmdAtom` autocmd. Until it lands the requirement is `>= 0.9.0`. A side effect is
+> that eleven exercises become permanently uncreditable and are labelled
+> `unsupported`; see `~/.claude/plans/i-think-first-the-staged-iverson.md`.
 
 ## 📦 Installation
 
