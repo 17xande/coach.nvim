@@ -10,9 +10,17 @@ SPECS := $(sort $(wildcard tests/*_spec.lua))
 # into a "No write since last change" prompt, and headless then waits forever.
 TIMEOUT := timeout 120
 
-.PHONY: test check
+.PHONY: test check preflight
 
-test:
+# The precondition for everything else: coach tracks nothing without
+# track-action, and track-action reports nothing without CmdAtom (Neovim 0.13).
+# A missing event has to fail loudly here rather than produce a green suite that
+# asserted nothing -- every emit check would simply see no actions.
+preflight:
+	@nvim --headless --clean -c 'luafile tests/preflight.lua' -c 'qa!'
+	@echo "preflight ok: $$(nvim --version | head -1)"
+
+test: preflight
 	@for spec in $(SPECS); do \
 		echo "=== $$spec"; \
 		$(TIMEOUT) $(NVIM) -c "luafile $$spec" -c "qa!" || exit 1; \
