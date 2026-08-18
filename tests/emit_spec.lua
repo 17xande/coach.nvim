@@ -81,11 +81,34 @@ describe("every builtin exercise can be emitted", function()
 	-- `classify_ex_command` does, and while they went unchecked nine of them were
 	-- dead: `ex:q` where the tracker emits `ex:quit`, `ex:e!` where it emits
 	-- `ex:edit!`, `ex:!` where it emitted nothing nameable at all.
+	-- Exercises the *parser* cannot name but CmdAtom can, so they are spelled for
+	-- CmdAtom and the old fence has nothing useful to say about them. This table is
+	-- transitional and empties itself: it goes when the parser does, along with the
+	-- whole of this file's parser half.
+	--
+	-- `<Tab>` is the one entry. It and `<C-i>` are the same byte; the parser's
+	-- generated tables call it `<C-i>` and Neovim's atoms call it `<Tab>`, so one
+	-- spelling has to be dead during the migration and the drill is spelled for the
+	-- destination.
+	local CMDATOM_SPELLING = {
+		["<Tab>"] = "the parser calls this byte <C-i>; CmdAtom calls it <Tab>",
+	}
+
 	for _, e in ipairs(EXERCISES) do
 		local label = ("%s %s  %s"):format(e.session, e.set_id, e.exercise)
-		it(label, function()
-			eq(e.exercise, emitted_for(e.exercise))
-		end)
+		local transitional = CMDATOM_SPELLING[e.exercise]
+		if transitional then
+			it(label .. " (spelled for CmdAtom: " .. transitional .. ")", function()
+				-- Asserted to miss, so this cannot outlive the parser silently: once
+				-- the parser is gone and `emitted_for` answers from atoms, the day
+				-- this starts matching is the day the entry has to go.
+				h.neq(e.exercise, emitted_for(e.exercise))
+			end)
+		else
+			it(label, function()
+				eq(e.exercise, emitted_for(e.exercise))
+			end)
+		end
 	end
 end)
 

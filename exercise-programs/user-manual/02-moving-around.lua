@@ -140,7 +140,10 @@ return {
 		help_tag = "03.10",
 		exercises = {
 			{ exercise = "<C-o>", display = "Ctrl-O", desc = "Older jump" },
-			{ exercise = "<C-i>", display = "Ctrl-I", desc = "Newer jump" },
+			-- Spelled <Tab>, not <C-i>: they are the same byte, and Neovim reports
+			-- it as <Tab>. Pressing either counts; the manual writes CTRL-I, so
+			-- that is what `display` still says.
+			{ exercise = "<Tab>", display = "Ctrl-I", desc = "Newer jump" },
 			{ exercise = "m{mark}", display = "m{mark}", desc = "Set mark a-z" },
 			{ exercise = "`{mark}", display = "`{mark}", desc = "Go to mark a-z" },
 			{ exercise = "''", display = "''", desc = "Jump back to line" },

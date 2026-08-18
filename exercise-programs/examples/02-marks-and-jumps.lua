@@ -19,7 +19,8 @@ return {
 		help_tag = "jump-motions",
 		exercises = {
 			{ exercise = "<C-o>", display = "Ctrl-O", desc = "Jump backward" },
-			{ exercise = "<C-i>", display = "Ctrl-I", desc = "Jump forward" },
+			-- <Tab>, not <C-i>: the same byte, and Neovim reports it as <Tab>.
+			{ exercise = "<Tab>", display = "Ctrl-I", desc = "Jump forward" },
 			{ exercise = "ex:jumps", display = ":jumps", desc = "Show the jump list" },
 		},
 	},
