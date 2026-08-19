@@ -11,21 +11,26 @@ muscle memory.
 - 🔢 **Rep counting** — each exercise must be pressed a configurable number of times before you can advance
 - 🪟 **Live floating window** — a non-intrusive panel that shows your progress bars and exercise status as you work
 - 🚫 **Shadow detection** — if you've remapped a key (e.g. `gd` for LSP), coach.nvim knows and won't count it or block your progress
-- 🗺️ **Your own mappings count** — press your `<leader>` binding for an exercise and it still credits the rep
+- 🗺️ **Your own mappings count** — press your `<leader>` binding for an exercise and it still credits the rep, with no configuration: Neovim reports both the command your mapping ran and the keys you pressed
 - 📋 **Set index sidebar** — browse all sets at a glance and jump to any one directly
 - 🎒 **Custom programs** — add your own sessions from a local directory or clone them straight from a GitHub repo
 - 💾 **Per-session progress** — switch between sessions without mixing up your progress
-- 🔗 **Powered by track-action.nvim** — all keystroke tracking is delegated to a dedicated plugin
+- 🔗 **Powered by track-action.nvim** — all action tracking is delegated to a dedicated plugin
 
 ## ⚡️ Requirements
 
 - Neovim >= 0.13 (needs the `CmdAtom` event)
-- [track-action.nvim](https://github.com/17xande/track-action.nvim) — required for keystroke tracking
+- [track-action.nvim](https://github.com/17xande/track-action.nvim) — required for action tracking
 
-> **Note:** a rewrite in progress moves command recognition onto Neovim 0.13's
-> `CmdAtom` autocmd. Until it lands the requirement is `>= 0.9.0`. A side effect is
-> that eleven exercises become permanently uncreditable and are labelled
-> `unsupported`; see `~/.claude/plans/i-think-first-the-staged-iverson.md`.
+0.13 is a hard requirement, not a recommendation: track-action reads your actions from
+Neovim's `CmdAtom` event and has no fallback, so nothing is counted on an older
+version. `:checkhealth coach` says so.
+
+> **Note:** fifteen of the builtin exercises can never be credited, because Neovim
+> reports the command that *ran* and for those keys that is not the key you pressed
+> (`S` is reported as `cc`, `x` as `dl`, and starting a Visual selection reports
+> nothing at all). They are labelled `unsupported` in the window and do not block a
+> set. Five of them fill a *different* drill's bar — see `:help coach-unsupported`.
 
 ## 📦 Installation
 

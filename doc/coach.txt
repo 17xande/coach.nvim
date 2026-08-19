@@ -16,6 +16,7 @@ CONTENTS                                                      *coach-contents*
   8. The index sidebar ........................ |coach-index|
   9. Shadowed exercises ....................... |coach-shadowed|
  10. Alternative keybinds ..................... |coach-alternatives|
+ 10a. Unsupported exercises ................... |coach-unsupported|
  11. Counting rules ........................... |coach-counting|
  12. Writing a program ........................ |coach-programs|
  13. Progress files ........................... |coach-progress|
@@ -44,13 +45,17 @@ The hierarchy, which the rest of this file uses:
 ==============================================================================
 2. REQUIREMENTS                                           *coach-requirements*
 
-- Neovim 0.10 or newer.
-- track-action.nvim, which does the keystroke parsing.
+- Neovim 0.13 or newer.
+- track-action.nvim, which reports the actions you perform.
 
-coach.nvim is a consumer of track-action.nvim's API: track-action intercepts
-every keystroke, parses Vim's command grammar and emits a normalized action
-string, and coach.nvim counts those strings against the active set. Without
-it the plugin still loads - commands, keybinds and the index all work - but
+0.13 is a hard requirement, not a recommendation: track-action.nvim reads your
+actions from Neovim's |CmdAtom| event, which older versions do not have, and
+there is no fallback. On an older Neovim nothing is ever counted.
+
+coach.nvim is a consumer of track-action.nvim's API: Neovim reports each
+completed action, track-action names it as a normalized action string, and
+coach.nvim counts those strings against the active set. Without track-action
+the plugin still loads - commands, keybinds and the index all work - but
 coaching cannot start, and |:checkhealth| says so.
 
 ==============================================================================
@@ -245,6 +250,12 @@ It is not focusable, so it never takes the cursor from the buffer you are
 working in - which is the point, since the reps come from that work. Resize
 or move it with |coach-opt-window|.
 
+A row with no progress bar has one of two labels instead, and neither is
+waiting for you: `shadowed` means you have remapped the key
+(|coach-shadowed|), `unsupported` means Neovim cannot report the command
+(|coach-unsupported|). Both are skipped when deciding whether a set is
+complete.
+
 Completing a set does not advance automatically. The window says so and waits
 for |:CoachNext|, because being moved on mid-edit by a keystroke you were not
 thinking about is worse than pressing one key.
@@ -273,25 +284,95 @@ whatever your mapping does, not what the manual describes. Those rows are
 marked and do not have to be filled for the set to count as complete - there
 is no point demanding reps of a key that no longer performs the exercise.
 
-Two known gaps, both deliberate and both pinned by tests:
+One known gap, deliberate and pinned by a test: a mapping on a prefix of the
+keys is not detected. Remapping `d` stops `dw` working, but only the whole
+sequence is checked.
 
-- A mapping on a prefix of the keys is not detected. Remapping `d` stops `dw`
-  working, but only the whole sequence is checked.
-- Neovim's own default mappings count as shadows. matchit ships mapped to
-  `%`, so `[count]%` reports shadowed out of the box even though the mapping
-  does the same thing.
+The second gap is fixed. Neovim's own default mappings used to count as
+shadows -- matchit ships mapped to `%`, so `[count]%` reported shadowed out of
+the box even though the mapping does the same thing. Every mapping now reports
+the keys that ran it alongside the command it performed, so `%` is credited
+by what you pressed; see |coach-alternatives|.
 
 ==============================================================================
 10. ALTERNATIVE KEYBINDS                                  *coach-alternatives*
 
-If you have your own mapping for an exercise, pressing it still counts, and
-the window shows it beside the default keys.
+If you have your own mapping for an exercise, pressing it still counts.
 
-The mapping's right-hand side is run through track-action.nvim's parser and
-the resulting action compared, rather than the text compared: that is what
-lets `<leader>W` mapped to `5w` count for `[count]w`, and `<cmd>vsplit<cr>`
-count for `<C-w>v`. Mappings whose right-hand side is not keys at all -
-|<Plug>| targets and |:map-expression| - are ignored.
+Nothing is resolved to make that work. Neovim applies your mapping, reports
+the command it performed, and reports the keys you pressed alongside it - so
+a `<leader>W` mapped to `5w` credits `[count]w` because the *command* matches,
+and a set drilling `<leader>W` itself would credit it because the *keys*
+match. Whichever spelling the set names is the one that counts.
+
+This is also what makes three exercises creditable at all, and it is worth
+knowing which:
+
+  `%` and `[count]%`   matchit ships in Neovim's runtime mapped to `%`, so
+                       pressing it performs an ex call
+  `Y`                  a default mapping to `y$`
+
+In each case the command that ran is not the exercise, and only the keys you
+pressed name it.
+
+The window shows a mapping beside the default keys once it has seen you press
+it. Until then it is not listed - there is no way to ask what a key sequence
+would do without pressing it.
+
+==============================================================================
+10a. UNSUPPORTED EXERCISES                                 *coach-unsupported*
+
+Fifteen of the builtin exercises can never be credited. They are marked
+`unsupported` in the window and do not have to be filled for a set to count
+as complete.
+
+This is not a bug in either plugin and cannot be worked around. Neovim reports
+the command that *ran*, and for these keys that is not the key you pressed.
+
+Keys reported as the command they are defined to perform: >
+
+    x  [count]x  ->  dl, [count]dl        D  -> d$
+    X            ->  dh                   C  -> c$
+    s            ->  cl                   S  -> cc
+    do           ->  o    (diff-obtain)   dp -> p    (diff-put)
+<
+Keys that report nothing at all: >
+
+    v  V  <C-v>  gv     starting or reselecting a Visual selection is not a
+                        completed action; `viwd` is, but `v` alone is not
+<
+And two of their own: >
+
+    .    reported identically to the action it repeats, with nothing marking
+         it as a repeat
+    !!   opens a command line; what completes is the command you type into
+         it, which is drilled as `ex:!`
+<
+                                                        *coach-false-positive*
+Five of them are worse than a dead row, and this is the part to know. Where
+the command reported is *itself* a drilled exercise, pressing the key fills
+the other drill's bar:
+
+  pressing        fills
+  `S`               `cc`
+  `D`               `d$`
+  `do`              `o`
+  `dp`              `p`
+  `.`               whatever it repeated
+
+No label can fix that - the row that moves is a legitimate one - so it is
+documented instead. `x`, `X`, `s` and `C` are harmless only because `dl`,
+`dh`, `cl` and `c$` are not drilled anywhere.
+
+Repeating with |.| does not double-count today, but by luck rather than
+design: |coach-anti-spam| refuses the same action twice within the last three,
+so `dw.` credits `dw` once.
+
+                                                              *coach-ctrl-i*
+`<C-i>` is **not** on this list, and nearly was. Neovim names that byte
+`<Tab>`, which is a difference of naming rather than something it cannot
+report - the jump-forward works perfectly well. The drill is spelled `<Tab>`,
+and pressing either counts.
 
 ==============================================================================
 11. COUNTING RULES                                            *coach-counting*
@@ -314,10 +395,15 @@ Reps are meant to come from editing, and holding a key down is not editing.
 Some sets also declare negative rules: an exercise the set is trying to
 replace (arrow keys, `l` spam) decrements progress rather than adding to it.
 
-Triggers name special keys as Vim names them -- `<Down>`, `<Home>`, `<PageUp>`
--- because that is what track-action.nvim reports for them; see
-|track-action-special-keys|. `:checkhealth coach` reports any trigger whose
-action nothing emits, which is a rule that can never fire.
+Triggers name special keys as Neovim names them -- `<Down>`, `<Home>`,
+`<Left>` -- because that is what track-action.nvim reports for them; see
+|track-action-special-keys|.
+
+`<PageUp>`, `<PageDown>`, `<S-Up>` and `<S-Down>` are **not** reported at all,
+though `<C-f>` and `<C-b>` are, so a trigger naming one of them can never
+fire. Whether every trigger this plugin ships can fire is checked by a test in
+track-action.nvim, which types each one into a real Neovim; it cannot be
+checked from inside a running editor.
 
 ==============================================================================
 12. WRITING A PROGRAM                                         *coach-programs*

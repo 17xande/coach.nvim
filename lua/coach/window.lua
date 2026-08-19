@@ -19,6 +19,10 @@ local HL_COMPLETE = "CoachComplete"
 local HL_HINT = "CoachHint"
 local HL_WARN = "CoachWarn"
 local HL_SHADOWED = "CoachShadowed"
+-- Same treatment as shadowed, and a separate group so a colourscheme can tell the
+-- two apart: "you remapped this" and "Neovim cannot report this" are different
+-- facts, even though both mean the row is not waiting for you.
+local HL_UNSUPPORTED = "CoachUnsupported"
 
 --- Setup highlight groups
 local function setup_highlights()
@@ -36,6 +40,7 @@ local function setup_highlights()
 	set(0, HL_HINT, { fg = "#7aa2f7", italic = true, default = true })
 	set(0, HL_WARN, { fg = "#e0af68", italic = true, default = true })
 	set(0, HL_SHADOWED, { fg = "#565f89", italic = true, default = true })
+	set(0, HL_UNSUPPORTED, { fg = "#565f89", italic = true, default = true })
 end
 
 --- Build a progress bar string
@@ -195,6 +200,10 @@ function M.render(set, counts, required_reps, next_key, shadowed, alternatives)
 	end
 
 	shadowed = shadowed or {}
+	-- Not a parameter, unlike `shadowed`: which keys the user has remapped is a fact
+	-- about the user and only the caller knows it, while which actions Neovim can
+	-- report is a fact about Neovim. Reading it here keeps four call sites unchanged.
+	local unsupported = require("coach.unsupported")
 	alternatives = alternatives or {}
 	local bar_width = 6
 	local lines = {}
@@ -215,7 +224,8 @@ function M.render(set, counts, required_reps, next_key, shadowed, alternatives)
 	local desc_width = 0
 	for _, e in ipairs(set.exercises) do
 		local d = e.display
-		if not shadowed[e.exercise] and alternatives[e.exercise] and #alternatives[e.exercise] > 0 then
+		local inert = shadowed[e.exercise] or unsupported.is(e.exercise)
+		if not inert and alternatives[e.exercise] and #alternatives[e.exercise] > 0 then
 			d = d .. " / " .. table.concat(alternatives[e.exercise], " / ")
 		end
 		display_width = math.max(display_width, vim.fn.strdisplaywidth(d) + 2)
@@ -227,25 +237,35 @@ function M.render(set, counts, required_reps, next_key, shadowed, alternatives)
 	for _, e in ipairs(set.exercises) do
 		-- Build display string with alternatives
 		local display_text = e.display
-		if not shadowed[e.exercise] and alternatives[e.exercise] and #alternatives[e.exercise] > 0 then
+		local is_unsupported = unsupported.is(e.exercise)
+		local inert = shadowed[e.exercise] or is_unsupported
+		if not inert and alternatives[e.exercise] and #alternatives[e.exercise] > 0 then
 			display_text = display_text .. " / " .. table.concat(alternatives[e.exercise], " / ")
 		end
 		local display = pad_display(display_text, display_width)
 		local desc_str = pad_display(e.desc, desc_width)
 		local line_idx = #lines
 
-		if shadowed[e.exercise] then
-			-- Shadowed: show a dim indicator instead of progress
-			local indicator = "\u{2014} shadowed"
+		if inert then
+			-- Shadowed or unsupported: a dim indicator instead of progress, because
+			-- no amount of pressing will fill a bar for either. Both are excluded
+			-- from `is_set_complete`, so neither blocks `:CoachNext`.
+			--
+			-- Worded as a current limitation rather than as the user's problem: an
+			-- unsupported row is a thing Neovim does not report, not a thing they
+			-- did wrong.
+			local unsupported_row = is_unsupported and not shadowed[e.exercise]
+			local indicator = unsupported_row and "\u{2014} unsupported" or "\u{2014} shadowed"
+			local hl = unsupported_row and HL_UNSUPPORTED or HL_SHADOWED
 			local line = "  " .. display .. desc_str .. indicator
 			table.insert(lines, line)
 
 			local col = 2
 			table.insert(highlights, { line_idx, col, col + #display, HL_ACTION })
 			col = col + #display
-			table.insert(highlights, { line_idx, col, col + #desc_str, HL_SHADOWED })
+			table.insert(highlights, { line_idx, col, col + #desc_str, hl })
 			col = col + #desc_str
-			table.insert(highlights, { line_idx, col, col + #indicator, HL_SHADOWED })
+			table.insert(highlights, { line_idx, col, col + #indicator, hl })
 		else
 			local count = math.min(counts[e.exercise] or 0, required_reps)
 			local complete = count >= required_reps

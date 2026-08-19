@@ -374,4 +374,64 @@ describe("message timer", function()
 	end)
 end)
 
+describe("unsupported rows", function()
+	-- An exercise Neovim can never report gets no progress bar, because no amount of
+	-- pressing will fill one. Rendered like a shadowed row -- same shape, different
+	-- word -- since both mean "this row is not waiting for you".
+	--
+	-- Read from `coach.unsupported` inside render rather than passed in, unlike
+	-- `shadowed`: which keys a user has remapped is a fact about the user, and which
+	-- actions Neovim reports is not.
+	local function render_set(exercises)
+		window.open()
+		window.render({ id = "99.9", title = "T", exercises = exercises }, {}, 20, "<leader>kn")
+		local lines = vim.api.nvim_buf_get_lines(window._buf(), 0, -1, false)
+		window.close()
+		return table.concat(lines, "\n")
+	end
+
+	it("labels an unsupported exercise instead of drawing a bar", function()
+		local text = render_set({
+			{ exercise = "x", display = "x", desc = "Delete char" },
+		})
+		is_true(text:find("unsupported", 1, true) ~= nil, text)
+		is_true(text:find("0/20", 1, true) == nil, "should draw no counter: " .. text)
+	end)
+
+	it("still draws a bar for a creditable exercise beside it", function()
+		local text = render_set({
+			{ exercise = "x", display = "x", desc = "Delete char" },
+			{ exercise = "w", display = "w", desc = "Word" },
+		})
+		is_true(text:find("unsupported", 1, true) ~= nil, text)
+		is_true(text:find("0/20", 1, true) ~= nil, "the creditable row needs its counter: " .. text)
+	end)
+
+	it("does not label a creditable exercise", function()
+		local text = render_set({
+			{ exercise = "w", display = "w", desc = "Word" },
+		})
+		is_true(text:find("unsupported", 1, true) == nil, text)
+	end)
+
+	it("does not label <Tab>, which is creditable", function()
+		-- The rename, not a give-up: `<C-i>` and `<Tab>` are the same key.
+		local text = render_set({
+			{ exercise = "<Tab>", display = "Ctrl-I", desc = "Newer jump" },
+		})
+		is_true(text:find("unsupported", 1, true) == nil, text)
+	end)
+
+	it("renders a whole unsupported set without crashing", function()
+		-- The width computation has a branch per row kind, and a set that is *all*
+		-- unsupported is the case where the creditable branch never runs.
+		local text = render_set({
+			{ exercise = "v", display = "v", desc = "Visual" },
+			{ exercise = "V", display = "V", desc = "Visual line" },
+			{ exercise = "<C-v>", display = "Ctrl-V", desc = "Visual block" },
+		})
+		is_true(text:find("unsupported", 1, true) ~= nil, text)
+	end)
+end)
+
 h.summary()

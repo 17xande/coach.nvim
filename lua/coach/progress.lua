@@ -294,17 +294,35 @@ function M.is_exercise_complete(exercise)
 	return M.get_count(exercise) >= reps
 end
 
+--- Is every exercise of the current set either complete or impossible?
+---
+--- Two kinds of row are skipped rather than waited for:
+---
+---   * **shadowed** -- the user has remapped the key, so pressing it does something
+---     else. Passed in by the caller, which is the only place that knows the user's
+---     mappings.
+---   * **unsupported** -- Neovim can never report it, so no amount of pressing will
+---     fill the bar. Read from `coach.unsupported` here rather than passed in,
+---     because it is a fact about Neovim and not about this user.
+---
+--- Skipping the second kind is load-bearing, not tidiness: without it a set holding
+--- one of the fifteen uncreditable exercises blocks `:CoachNext` **forever**, and
+--- nothing tells the user why. That is the exact failure the emit fence was built to
+--- catch, and it would be reintroduced by an `is_set_complete` that only knew about
+--- shadowing.
 ---@param shadowed? table<string, any>
 ---@return boolean
 function M.is_set_complete(shadowed)
 	shadowed = shadowed or {}
+	local unsupported = require("coach.unsupported")
 	local s = sets.get(current_set_index)
 	if not s then
 		return false
 	end
 
 	for _, e in ipairs(s.exercises) do
-		if not shadowed[e.exercise] and not M.is_exercise_complete(e.exercise) then
+		local skip = shadowed[e.exercise] or unsupported.is(e.exercise)
+		if not skip and not M.is_exercise_complete(e.exercise) then
 			return false
 		end
 	end
