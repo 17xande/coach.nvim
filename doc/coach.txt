@@ -316,8 +316,21 @@ In each case the command that ran is not the exercise, and only the keys you
 pressed name it.
 
 The window shows a mapping beside the default keys once it has seen you press
-it. Until then it is not listed - there is no way to ask what a key sequence
-would do without pressing it.
+it, and remembers it afterwards. Until then it is not listed - there is no way
+to ask what a key sequence would do without pressing it.
+
+                                                     *coach-mapping-limits*
+Two kinds of mapping cannot be credited at all, because Neovim reports that a
+mapping ran without reporting what it did:
+
+- A mapping whose right-hand side is a **Lua function**. A `:normal` inside it
+  is programmatic input, and nothing programmatic is reported.
+- A mapping using **|<Cmd>|**, which is the spelling |:help| recommends. It
+  avoids the cmdline entirely, and that is what loses the command:
+  `<Cmd>nohlsearch<CR>` reports only that a mapping ran.
+
+The workaround for the second is the older spelling - `:nohlsearch<CR>` is
+reported in full and counts. There is none for the first.
 
 ==============================================================================
 10a. UNSUPPORTED EXERCISES                                 *coach-unsupported*

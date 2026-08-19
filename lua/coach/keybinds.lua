@@ -194,7 +194,11 @@ function M.get_alternatives(set)
 		end
 	end
 
-	local alternatives = {}
+	-- Seeded with what the user has actually pressed, which is the half that
+	-- covers a decorated exercise and a Lua-callback mapping. The static scan below
+	-- adds a mapping whose right-hand side is literally the exercise's keys -- the
+	-- only case that needs no interpretation, and so the only one it can still do.
+	local alternatives = require("coach.alternatives").get(set)
 
 	for _, map in ipairs(all_maps) do
 		local lhs = map.lhs or ""
@@ -219,6 +223,11 @@ function M.get_alternatives(set)
 			if original then
 				if not alternatives[original] then
 					alternatives[original] = {}
+				end
+				-- The learned list may already hold this lhs, and a row showing the
+				-- same mapping twice reads as two mappings.
+				if vim.tbl_contains(alternatives[original], M.format_key_display(lhs)) then
+					goto continue
 				end
 				table.insert(alternatives[original], M.format_key_display(lhs))
 			end

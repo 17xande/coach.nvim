@@ -71,6 +71,7 @@ function M.start()
 	save_autocmd = vim.api.nvim_create_autocmd("VimLeavePre", {
 		callback = function()
 			progress.save()
+			require("coach.alternatives").flush()
 		end,
 	})
 end
@@ -455,6 +456,14 @@ function M.setup(opts)
 	})
 
 	window.configure(opts.window)
+	-- Learned alternatives are per *install*, not per session -- a mapping is a
+	-- property of the user's config. The path is derived from the progress root's
+	-- parent rather than being its own option: that puts it beside `state.json`,
+	-- which is the other per-install file, and it means a test that redirects
+	-- `progress_dir` cannot write over a real one.
+	require("coach.alternatives").setup({
+		path = vim.fn.fnamemodify(progress.get_progress_dir(), ":h") .. "/alternatives.json",
+	})
 
 	-- Wire the switch hook: save/load progress for the new session, re-render.
 	programs._on_switch = function(program_name, session_name)

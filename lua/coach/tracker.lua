@@ -363,6 +363,17 @@ local function on_action(action, data)
 		match_action = alt
 	end
 
+	-- Learn the mapping that performed this exercise, so the window can show it
+	-- beside the default keys. Every atom a mapping produces carries its `lhs`, so
+	-- there is nothing to resolve -- which is why this covers a Lua-callback mapping
+	-- that the old static scan could never reach.
+	--
+	-- Before the completeness and cooldown checks below: a mapping is worth showing
+	-- whether or not this particular press counted.
+	if data and data.lhs then
+		require("coach.alternatives").learn(match_action, keybinds.format_key_display(data.lhs))
+	end
+
 	if progress.is_exercise_complete(match_action) then
 		log.debug("on_action: exercise already complete, skip")
 		push_recent(action)

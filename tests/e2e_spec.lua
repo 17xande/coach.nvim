@@ -191,6 +191,95 @@ describe("a rep counted from a real keypress", function()
 		eq(before + 1, counts(child)["[count]w"])
 	end)
 
+	it("learns a mapping as an alternative once it has been pressed", function()
+		-- The replacement for the static scan, and the reason it needs no
+		-- interpretation: Neovim reports the command the mapping ran *and* the keys
+		-- that ran it, so pressing it once is what teaches the window.
+		eq("03.1", goto_set(child, "02-moving-around", "03.1"))
+		child:lua([[
+      require("coach.alternatives").clear()
+      vim.keymap.set("n", ",e", "e")
+    ]])
+		eq(0, #child:lua([[return require("coach.alternatives").for_exercise("e")]]), "nothing learned yet")
+
+		child:press(",e")
+		local learned = child:lua([[return require("coach.alternatives").for_exercise("e")]])
+		eq(1, #learned)
+		-- Displayed with the leader normalized, since mapleader is "," here.
+		eq("<leader>e", learned[1])
+	end)
+
+	it("learns a `:`-style mapping as the ex command it runs", function()
+		-- A `:` right-hand side goes through the cmdline, so the ex command is
+		-- reported in full and the mapping is credited and learned.
+		eq("03.8", goto_set(child, "02-moving-around", "03.8"))
+		child:lua([[
+      require("coach.alternatives").clear()
+      vim.keymap.set("n", ",h", ":nohlsearch<CR>")
+    ]])
+		child:press(",h")
+		local learned = child:lua([[return require("coach.alternatives").for_exercise("ex:nohlsearch")]])
+		eq(1, #learned)
+		eq("<leader>h", learned[1])
+	end)
+
+	it("cannot credit a <Cmd> mapping, which is the recommended spelling", function()
+		-- **The limitation most likely to bite a real config.** `:help <Cmd>`
+		-- recommends `<Cmd>` over `:` precisely because it avoids the cmdline
+		-- events -- and avoiding them is what loses the command. A
+		-- `<Cmd>nohlsearch<CR>` mapping reports only that *a mapping* ran, with no
+		-- command and no text, so there is nothing to credit or to learn.
+		--
+		-- Asserted rather than left as a surprise. The workaround is the older `:`
+		-- spelling, as in the case above.
+		eq("03.8", goto_set(child, "02-moving-around", "03.8"))
+		child:lua([[
+      require("coach.alternatives").clear()
+      vim.keymap.set("n", ",H", "<Cmd>nohlsearch<CR>")
+    ]])
+		child:press(",H")
+		eq(0, #child:lua([[return require("coach.alternatives").for_exercise("ex:nohlsearch")]]))
+	end)
+
+	it("cannot learn a Lua-callback mapping that runs :normal", function()
+		-- **The limitation, asserted so it is not rediscovered as a bug.** A callback
+		-- reports `type="mapping"` with an empty `keys` and no `cmd` at all: Neovim
+		-- says a mapping ran and says nothing about what it did, because `:normal`
+		-- is programmatic input and publishes no atom of its own.
+		--
+		-- So the action rendered is the lhs itself. A set drilling `b` is not
+		-- credited, and there is nothing to attach as an alternative. The old
+		-- parser-based scan could not reach these either -- its rhs was not keys --
+		-- so nothing regressed, but neither is this fixed.
+		eq("03.1", goto_set(child, "02-moving-around", "03.1"))
+		child:lua([[
+      require("coach.alternatives").clear()
+      vim.keymap.set("n", ",B", function() vim.cmd("normal! b") end)
+    ]])
+		child:press(",B")
+		eq(0, #child:lua([[return require("coach.alternatives").for_exercise("b")]]))
+	end)
+
+	it("shows a learned mapping in the window beside the default keys", function()
+		eq("03.1", goto_set(child, "02-moving-around", "03.1"))
+		child:lua([[
+      require("coach.alternatives").clear()
+      vim.keymap.set("n", ",w", "w")
+    ]])
+		child:press(",w")
+		local text = child:lua([[
+      local window, sets, progress = require("coach.window"), require("coach.sets"), require("coach.progress")
+      window.open()
+      local s = sets.get(progress.get_set_index())
+      window.render(s, progress.get_counts(), 3, "<leader>kn",
+        require("coach.keybinds").get_shadowed(s), require("coach.keybinds").get_alternatives(s))
+      local lines = vim.api.nvim_buf_get_lines(window._buf(), 0, -1, false)
+      window.close()
+      return table.concat(lines, "\n")
+    ]])
+		eq(true, text:find("<leader>w", 1, true) ~= nil, text)
+	end)
+
 	it("counts % even though matchit turns it into an ex call", function()
 		-- Creditable only through the keys pressed; the atom names the ex call. This
 		-- is also the shadow gap that used to be documented as unfixable.
