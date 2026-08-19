@@ -57,55 +57,6 @@ local function bare_keys(exercise)
 	return commands and commands.strip_decoration(exercise) or exercise
 end
 
---- The action string a key sequence produces, according to track-action's parser.
----
---- This is what makes a mapping to `5w` recognisable as an alternative for
---- `[count]w`: comparing the right-hand side to the exercise textually never
---- matches, because the exercise is an action string and the right-hand side is
---- keys. Feeding it to the same parser that emits the exercise answers exactly the
---- right question.
----@param keys string
----@return string|nil
-local function action_for_keys(keys)
-	local ok, parser_mod = pcall(require, "track-action.parser")
-	if not ok then
-		return nil
-	end
-
-	-- nvim_get_keymap hands back whatever was typed, which for a control key is the
-	-- raw byte. keytrans() puts it in `<C-W>` notation, and track-action's parser is
-	-- fed the tracker's own spelling, which is lower case.
-	keys = vim.fn.keytrans(keys):gsub("<C%-(%a)>", function(c)
-		return "<C-" .. c:lower() .. ">"
-	end)
-
-	local parser = parser_mod.new()
-	local action
-	local i = 1
-	while i <= #keys do
-		local key
-		if keys:sub(i, i) == "<" then
-			local close = keys:find(">", i, true)
-			key = close and keys:sub(i, close) or keys:sub(i, i)
-		else
-			key = keys:sub(i, i)
-		end
-		i = i + #key
-		local emitted = parser:feed_key(key, "n")
-		if emitted then
-			-- More than one action means the mapping is a sequence of commands, not
-			-- another name for one, so it is not an alternative for any exercise.
-			if action then
-				return nil
-			end
-			action = emitted
-		end
-	end
-
-	-- Keys left in the parser mean the sequence was incomplete.
-	return action
-end
-
 --- Resolve a mapping RHS to a native key equivalent.
 ---@param rhs string The right-hand side of a mapping
 ---@return string|nil native The native key equivalent, or nil if unrecognizable
@@ -123,11 +74,22 @@ local function resolve_native(rhs)
 		return native_for_ex(cmd_match)
 	end
 
-	-- Direct key sequence (e.g. <C-h> mapped to <C-w>h): ask the parser what those
-	-- keys do. That resolves `5w` to `[count]w` and `fx` to `f{char}`, and returns
-	-- nil for a right-hand side that is not a command at all.
+	-- Direct key sequence, e.g. `<C-h>` mapped to `<C-w>h`: the keys themselves are
+	-- the answer, compared against the exercise's keys by the caller.
+	--
+	-- This used to run the right-hand side through track-action's parser, which
+	-- resolved `5w` to `[count]w` and `fx` to `f{char}` -- so a mapping to a
+	-- *decorated* exercise was recognised. There is no parser now, and no way to ask
+	-- what a key sequence would do without pressing it, so those no longer match
+	-- here.
+	--
+	-- Nothing is lost permanently: a mapping's `lhs` arrives on every atom it
+	-- produces, so the alternative is *learned the first time the user presses it*
+	-- and needs no resolution at all -- which also covers the ones this never
+	-- reached, like a Lua-callback mapping. Until that lands, a `<leader>W` -> `5w`
+	-- simply is not listed.
 	if rhs ~= "" then
-		return action_for_keys(rhs) or rhs
+		return rhs
 	end
 
 	return nil

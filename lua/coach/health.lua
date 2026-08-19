@@ -43,7 +43,8 @@ local SHARED = {
 	{ module = "track-action.commands", fn = "strip_decoration" },
 	{ module = "track-action.commands", fn = "placeholder_for" },
 	{ module = "track-action.mappings", fn = "native_for_ex" },
-	{ module = "track-action.parser", fn = "new" },
+	{ module = "track-action.mappings", fn = "classify_ex_command" },
+	{ module = "track-action.render", fn = "render" },
 }
 
 --- Check track-action is installed and still exposes what coach calls.
@@ -80,7 +81,7 @@ local function check_track_action()
 	return {
 		name = name,
 		level = "ok",
-		message = "installed, with strip_decoration, placeholder_for, native_for_ex and the parser",
+		message = "installed, with strip_decoration, placeholder_for, native_for_ex, classify_ex_command and render",
 	}
 end
 
@@ -158,9 +159,21 @@ local function check_progress_dir(dir)
 	return { name = "progress directory", level = "ok", message = dir .. " is writable" }
 end
 
---- Check every exercise of the active session can actually be credited.
+--- Check the `ex:` exercises of the active session can actually be credited.
+---
+--- The ex half only, and the message says so. coach used to check every exercise
+--- by replaying its keys through track-action's parser; there is no parser now, and
+--- nothing running inside the user's Neovim can produce the `CmdAtom` payload an
+--- action string is rendered from. That check lives in track-action's
+--- `tests/vocabulary_spec.lua`, which types all 333 exercises into a second Neovim
+--- over RPC.
+---
+--- Keeping the ex half rather than dropping the check outright: it is pure -- an ex
+--- atom carries the typed cmdline, so the question is entirely
+--- `classify_ex_command`'s -- and it is the half with the worst record, nine dead at
+--- once. It is also the only check a *third-party* program still gets.
 ---@param sets_list table[]
----@return coach.HealthEntry|nil nil when there is no parser to ask
+---@return coach.HealthEntry|nil nil with nothing to ask, or nothing to check
 local function check_exercises(sets_list)
 	if not emit.is_available() then
 		return nil
@@ -173,12 +186,22 @@ local function check_exercises(sets_list)
 		return nil
 	end
 
+	local checked, total = emit.coverage(sets_list)
+	if checked == 0 then
+		return nil
+	end
+
 	local dead = emit.unemittable(sets_list)
 	if #dead == 0 then
 		return {
 			name = "exercises",
 			level = "ok",
-			message = "every exercise in the active session can be emitted",
+			-- Counted out loud, because "every exercise can be emitted" over a
+			-- third of the content would be a claim about the rest of it too.
+			message = ("%d of %d exercise(s) checked (the `ex:` ones) can be emitted; the rest are fenced in track-action's repo tests"):format(
+				checked,
+				total
+			),
 		}
 	end
 
@@ -193,7 +216,7 @@ local function check_exercises(sets_list)
 	return {
 		name = "exercises",
 		level = "warn",
-		message = ("%d exercise(s) can never be completed: %s%s"):format(
+		message = ("%d `ex:` exercise(s) can never be completed: %s%s"):format(
 			#dead,
 			table.concat(shown, ", "),
 			more
@@ -202,44 +225,12 @@ local function check_exercises(sets_list)
 	}
 end
 
---- Check every negative rule of the active session can actually fire.
----@param sets_list table[]
----@return coach.HealthEntry|nil nil with no parser to ask, or no rules to check
-local function check_triggers(sets_list)
-	if not emit.is_available() then
-		return nil
-	end
-
-	local rules = 0
-	for _, set in ipairs(sets_list) do
-		rules = rules + #(set.negatives or {})
-	end
-	if rules == 0 then
-		return nil
-	end
-
-	local dead = emit.unemittable_triggers(sets_list)
-	if #dead == 0 then
-		return {
-			name = "negative rules",
-			level = "ok",
-			message = ("every trigger of the %d rule(s) in the active session can fire"):format(rules),
-		}
-	end
-
-	local shown = {}
-	for i = 1, math.min(#dead, 5) do
-		shown[#shown + 1] = ("%s %s"):format(dead[i].set_id, dead[i].trigger)
-	end
-	local more = #dead > #shown and (" (+%d more)"):format(#dead - #shown) or ""
-
-	return {
-		name = "negative rules",
-		level = "warn",
-		message = ("%d trigger(s) can never fire: %s%s"):format(#dead, table.concat(shown, ", "), more),
-		advice = "these name action strings track-action does not emit; respell them (see its action format table)",
-	}
-end
+-- The negative-rule trigger check used to live here, asking the parser whether each
+-- trigger named an action anything emits. A dead trigger is as quiet as a dead
+-- exercise -- the rule simply never fires -- so it still needs a fence, and it has
+-- one: `tests/vocabulary_spec.lua` in track-action drives every trigger this repo
+-- ships. It cannot be asked at runtime for the same reason the key exercises cannot;
+-- see `coach.emit`.
 
 ---@class coach.HealthOverrides
 ---@field active? { program: string, session: string }|false `false` means none
@@ -287,11 +278,6 @@ function M.report(opts)
 	local exercises = check_exercises(sets_list)
 	if exercises then
 		report[#report + 1] = exercises
-	end
-
-	local triggers = check_triggers(sets_list)
-	if triggers then
-		report[#report + 1] = triggers
 	end
 
 	return report

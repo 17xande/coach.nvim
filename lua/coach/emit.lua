@@ -1,37 +1,57 @@
--- What track-action's parser emits for an exercise.
+-- Which exercises coach can check for itself, and which it cannot.
 --
 -- An exercise is a target for an *action string*, so an exercise that names a
--- string the parser never produces can never be completed: the user presses the
--- key, nothing is credited, and the set blocks `:CoachNext` forever. An audit found
--- 82 of 320 builtin exercises in that state.
+-- string track-action never produces can never be completed: the user presses the
+-- key, nothing is credited, and the set blocks `:CoachNext` forever. An audit once
+-- found 82 of 320 builtin exercises in that state, which is why there is a fence
+-- at all.
 --
--- `tests/emit_spec.lua` is the fence over the builtin content; `coach.health` asks
--- the same question at runtime, which is the only way to catch it in a third-party
--- program. Both go through here so there is one answer, not two.
+-- **Half that fence moved out of this repo, and it is worth knowing why.** coach
+-- used to answer "does this exercise emit?" by replaying its keys through
+-- track-action's parser in-process. There is no parser now: Neovim's `CmdAtom`
+-- reports what ran, and an action string is rendered *from a payload*, not derived
+-- from keys. Nothing in-process can produce that payload -- `nvim_feedkeys` does
+-- not publish atoms in any mode -- so the only way to ask the question is to type
+-- the keys into a second Neovim over RPC. That is exactly what
+-- `tests/vocabulary_spec.lua` in track-action.nvim does, for all 333 builtin
+-- exercises and every shipped negative trigger.
+--
+-- So the split is now:
+--
+--   * **`ex:` exercises** are still answerable here, and cheaply: an ex atom
+--     carries the text the user typed, so the whole question is what
+--     `classify_ex_command` calls it -- a pure function, no editor needed. This is
+--     also the half with the worst track record. Nine builtin ex exercises were
+--     dead at once (`ex:q` where the tracker emits `ex:quit`, `ex:bnext` where it
+--     emitted `ex:buffer_next`), found only when a user pressed `:q` and watched
+--     nothing happen.
+--   * **Every other exercise** is checked in track-action's repo tests, and not at
+--     runtime. The cost is real and worth stating plainly: a *third-party* program
+--     with a misspelled key exercise no longer gets a warning from
+--     `:checkhealth coach`. There is no way to give it one that does not involve
+--     spawning a Neovim from inside the user's Neovim.
+--
+-- `tests/emit_spec.lua` is the repo-side fence over the ex half and the notation
+-- lint; `coach.health` asks the same questions at runtime through here, so there
+-- is one answer rather than two.
 
 local M = {}
 
---- track-action's parser module, or nil if it is not installed.
----@return table|nil
-local function parser_mod()
-	local ok, parser = pcall(require, "track-action.parser")
-	return ok and parser or nil
-end
-
-M._parser_mod = parser_mod
-
---- track-action's mappings module, or nil if it is not installed. This is where an
---- `ex:` exercise gets its answer: those never reach the parser -- the tracker
---- classifies them from the CmdlineLeave path -- so asking the parser about one
---- says nothing, which is why they used to be exempt from this check entirely.
+--- track-action's mappings module, or nil if it is not installed.
+---
+--- This is where an `ex:` exercise gets its answer. Those never touch the
+--- action-rendering path at all: an ex command arrives as its own atom type
+--- carrying the typed cmdline, and the classifier names it.
 ---@return table|nil
 local function mappings_mod()
 	local ok, mappings = pcall(require, "track-action.mappings")
 	return ok and mappings or nil
 end
 
---- Split an action string into the keys the tracker would hand the parser.
---- `<C-w>` is one key.
+--- Split an action string into keys. `<C-w>` is one key.
+---
+--- Still here because `keystrokes_for` is still useful to anything driving an
+--- exercise for real, and because the notation lint reads tokens.
 ---@param str string
 ---@return string[]
 function M.split_keys(str)
@@ -63,51 +83,43 @@ function M.keystrokes_for(exercise)
 	return M.split_keys(typed)
 end
 
---- What track-action emits for an exercise, or nil if it emits nothing -- and nil
---- too when track-action is not installed, since then there is nothing to ask.
---- Callers that need to tell those apart check `is_available`.
+--- Can this exercise's emission be checked without an editor to type into?
 ---
---- An `ex:` exercise is answered by the ex-command classifier and everything else
---- by the parser, which is the same split the tracker itself makes: an ex command
---- arrives on the CmdlineLeave path and never touches the grammar.
+--- Only `ex:` ones. Exported because every caller has to branch on it, and a
+--- caller that instead treated "no answer" as "emits fine" would be reporting a
+--- vacuous OK over the half of the content nothing here checks.
+---@param exercise string
+---@return boolean
+function M.is_checkable(exercise)
+	return type(exercise) == "string" and exercise:match("^ex:") ~= nil
+end
+
+--- What track-action emits for an exercise, or nil if it emits nothing.
+---
+--- nil too when the exercise is not checkable here, or when track-action is not
+--- installed -- callers that need to tell those apart ask `is_checkable` and
+--- `is_available`.
 ---@param exercise string
 ---@return string|nil
 function M.emitted_for(exercise)
-	local typed_ex = exercise:match("^ex:(.+)$")
-	if typed_ex then
-		local mappings = mappings_mod()
-		return mappings and mappings.classify_ex_command(typed_ex) or nil
-	end
-
-	local mod = parser_mod()
-	if not mod then
+	local typed_ex = type(exercise) == "string" and exercise:match("^ex:(.+)$")
+	if not typed_ex then
 		return nil
 	end
-
-	local parser = mod.new()
-	local action
-	for _, key in ipairs(M.keystrokes_for(exercise)) do
-		local result = parser:feed_key(key, "n")
-		if result then
-			action = result
-		end
-	end
-	return action
+	local mappings = mappings_mod()
+	return mappings and mappings.classify_ex_command(typed_ex) or nil
 end
 
 --- Can the question be answered at all? False without track-action installed.
 ---@return boolean
 function M.is_available()
-	return parser_mod() ~= nil and mappings_mod() ~= nil
+	return mappings_mod() ~= nil
 end
 
---- Every exercise in `sets_list` that track-action cannot emit.
+--- Every `ex:` exercise in `sets_list` that track-action cannot emit.
 ---
---- `ex:` exercises used to be exempt here, on the grounds that the parser has
---- nothing to say about them -- but the *classifier* does, and while they went
---- unchecked nine builtin ones were dead: `ex:q` against an emitted `ex:quit`,
---- `ex:bnext` against `ex:buffer_next`, and so on. Exempting the half of the
---- content that a different function answers for is not a fence.
+--- Scoped to the ex half, and named so at the call site: see the header for what
+--- happened to the other half and why it cannot come back.
 ---@param sets_list table[] Set list, as `sets.get` returns them
 ---@return { set_id: string, exercise: string }[]
 function M.unemittable(sets_list)
@@ -119,12 +131,34 @@ function M.unemittable(sets_list)
 	for _, set in ipairs(sets_list or {}) do
 		for _, ex in ipairs(set.exercises or {}) do
 			local action = ex.exercise
-			if type(action) == "string" and M.emitted_for(action) ~= action then
+			if M.is_checkable(action) and M.emitted_for(action) ~= action then
 				out[#out + 1] = { set_id = set.id, exercise = action }
 			end
 		end
 	end
 	return out
+end
+
+--- How many exercises in `sets_list` this repo can and cannot check.
+---
+--- So a health report can say "checked 41 of 138" rather than an unqualified OK
+--- over content it never looked at. A fence that silently covers half its subject
+--- reads as covering all of it.
+---@param sets_list table[]
+---@return integer checked, integer total
+function M.coverage(sets_list)
+	local checked, total = 0, 0
+	for _, set in ipairs(sets_list or {}) do
+		for _, ex in ipairs(set.exercises or {}) do
+			if type(ex.exercise) == "string" then
+				total = total + 1
+				if M.is_checkable(ex.exercise) then
+					checked = checked + 1
+				end
+			end
+		end
+	end
+	return checked, total
 end
 
 --- Every exercise in `sets_list` that emits fine and still cannot be credited,
@@ -168,48 +202,14 @@ function M.uncreditable(sets_list)
 			local action = ex.exercise
 			-- Only ask of exercises that emit at all; a dead one is `unemittable`'s
 			-- to report, and reporting it twice helps nobody.
-			if type(action) == "string" and M.emitted_for(action) == action then
+			if M.is_checkable(action) and M.emitted_for(action) == action then
 				-- The report track-action builds: an ex command carries the native
-				-- keys that do the same thing, a parsed action is its own native.
+				-- keys that do the same thing.
 				local typed_ex = action:match("^ex:(.+)$")
-				local native = typed_ex and mappings.native_for_ex(typed_ex) or action
+				local native = mappings.native_for_ex(typed_ex)
 				local credited = resolve(action, { native = native }, exercise_set)
 				if credited ~= action then
 					out[#out + 1] = { set_id = set.id, exercise = action, credited = credited }
-				end
-			end
-		end
-	end
-	return out
-end
-
---- Every negative-rule trigger in `sets_list` that the parser cannot emit.
----
---- The same defect as a dead exercise and just as quiet: a rule whose trigger names
---- an action nothing emits never fires, so the habit it punishes goes unpunished and
---- nothing says so. Arrow-key triggers were in exactly that state while track-action
---- reported `<Down>` as raw bytes.
----
---- The `[N]` consecutive-press prefix is stripped through the rule engine's own
---- parser, so this cannot disagree with what the engine matches on.
----@param sets_list table[] Set list, as `sets.get` returns them
----@return { set_id: string, trigger: string, action: string }[]
-function M.unemittable_triggers(sets_list)
-	local out = {}
-	if not M.is_available() then
-		return out
-	end
-
-	local parse_trigger = require("coach.tracker")._parse_trigger
-
-	for _, set in ipairs(sets_list or {}) do
-		for _, rule in ipairs(set.negatives or {}) do
-			for _, trigger in ipairs(rule.triggers or {}) do
-				if type(trigger) == "string" then
-					local action = parse_trigger(trigger)
-					if M.emitted_for(action) ~= action then
-						out[#out + 1] = { set_id = set.id, trigger = trigger, action = action }
-					end
 				end
 			end
 		end

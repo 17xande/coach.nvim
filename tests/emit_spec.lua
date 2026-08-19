@@ -2,14 +2,28 @@
 -- Run: nvim --headless -u tests/minimal_init.lua -c "luafile tests/emit_spec.lua"
 --
 -- An exercise is a target for an action string that track-action.nvim emits. If it
--- targets a string the parser never produces, the row can never fill: the user
--- presses the key, nothing is credited, and the set blocks `:CoachNext` forever.
+-- targets a string nothing ever produces, the row can never fill: the user presses
+-- the key, nothing is credited, and the set blocks `:CoachNext` forever.
 --
 -- That is not hypothetical. An audit found **82 of 320 builtin exercises** in this
 -- state -- 42% of the drill content -- across six clusters, every one of them a gap
--- in track-action's command tables rather than a typo here. This spec is the fence
--- that would have caught all of them: it feeds each exercise through the real
--- parser and fails on any that cannot be emitted.
+-- in track-action's command tables rather than a typo here.
+--
+-- **This spec now covers the `ex:` half of that question, and it is important to
+-- know where the other half went.** coach used to answer "does this exercise emit?"
+-- by replaying its keys through track-action's parser in-process. There is no
+-- parser: Neovim's `CmdAtom` reports what ran, an action string is rendered from
+-- that payload, and nothing running inside this Neovim can produce one --
+-- `nvim_feedkeys` publishes no atoms in any mode. The key half is therefore fenced
+-- in **`track-action.nvim/tests/vocabulary_spec.lua`**, which types all 333
+-- exercises into a *second* Neovim over RPC and renders what comes back. Every
+-- shipped negative trigger goes through the same fence there.
+--
+-- What is left here is the half that needs no editor at all: an ex atom carries the
+-- text the user typed, so the whole question is what `classify_ex_command` calls it.
+-- It is also the half with the worst record -- nine builtin ex exercises were dead
+-- at once (`ex:q` against an emitted `ex:quit`, `ex:bnext` against
+-- `ex:buffer_next`), found only when a user pressed `:q` and watched nothing happen.
 --
 -- It needs track-action.nvim on the runtimepath and skips itself without it, so the
 -- suite still runs for someone who has only this plugin checked out.
@@ -21,25 +35,24 @@ local describe, it, eq = h.describe, h.it, h.eq
 -- is not already on the runtimepath: a sibling checkout is where it lives during
 -- development. Skip the whole spec if there is none, rather than fail a suite run
 -- for someone who has only this plugin.
-local ok_parser, parser_mod = pcall(require, "track-action.parser")
-if not ok_parser then
+local ok_ta = pcall(require, "track-action.mappings")
+if not ok_ta then
 	local sibling = vim.fn.fnamemodify(vim.fn.getcwd(), ":h") .. "/track-action.nvim"
 	if vim.fn.isdirectory(sibling) == 1 then
 		vim.opt.runtimepath:append(sibling)
-		ok_parser, parser_mod = pcall(require, "track-action.parser")
+		ok_ta = pcall(require, "track-action.mappings")
 	end
 end
-if not ok_parser then
+if not ok_ta then
 	print("emit_spec: track-action.nvim not found, skipping")
 	h.summary()
 	return
 end
 require("track-action.config").setup({ debug = false })
 
--- The keystroke-splitting and the parser call live in `coach.emit`, because
--- `:checkhealth coach` asks the same question at runtime and two implementations of
--- "what does this exercise emit" would eventually disagree. What this spec owns is
--- the *content* check below.
+-- The classification lives in `coach.emit`, because `:checkhealth coach` asks the
+-- same question at runtime and two implementations of "what does this exercise
+-- emit" would eventually disagree. What this spec owns is the *content* check.
 local emit = require("coach.emit")
 local emitted_for = emit.emitted_for
 
@@ -76,40 +89,30 @@ describe("every builtin exercise can be emitted", function()
 	-- One test per exercise rather than one summarizing test, so a failure names the
 	-- set and the exercise instead of a count.
 	--
-	-- `ex:` exercises are in here too. They used to be skipped, because they come
-	-- from the CmdlineLeave path and the parser has nothing to say about them -- but
-	-- `classify_ex_command` does, and while they went unchecked nine of them were
-	-- dead: `ex:q` where the tracker emits `ex:quit`, `ex:e!` where it emits
-	-- `ex:edit!`, `ex:!` where it emitted nothing nameable at all.
-	-- Exercises the *parser* cannot name but CmdAtom can, so they are spelled for
-	-- CmdAtom and the old fence has nothing useful to say about them. This table is
-	-- transitional and empties itself: it goes when the parser does, along with the
-	-- whole of this file's parser half.
-	--
-	-- `<Tab>` is the one entry. It and `<C-i>` are the same byte; the parser's
-	-- generated tables call it `<C-i>` and Neovim's atoms call it `<Tab>`, so one
-	-- spelling has to be dead during the migration and the drill is spelled for the
-	-- destination.
-	local CMDATOM_SPELLING = {
-		["<Tab>"] = "the parser calls this byte <C-i>; CmdAtom calls it <Tab>",
-	}
-
+	-- `ex:` only. They used to be *skipped* here, on the grounds that they come from
+	-- the cmdline path and the parser had nothing to say about them -- and while they
+	-- went unchecked nine of them were dead. Now they are the only ones this spec can
+	-- reach, for the opposite reason: they are the ones that need no editor.
+	local checkable = 0
 	for _, e in ipairs(EXERCISES) do
-		local label = ("%s %s  %s"):format(e.session, e.set_id, e.exercise)
-		local transitional = CMDATOM_SPELLING[e.exercise]
-		if transitional then
-			it(label .. " (spelled for CmdAtom: " .. transitional .. ")", function()
-				-- Asserted to miss, so this cannot outlive the parser silently: once
-				-- the parser is gone and `emitted_for` answers from atoms, the day
-				-- this starts matching is the day the entry has to go.
-				h.neq(e.exercise, emitted_for(e.exercise))
-			end)
-		else
-			it(label, function()
+		if emit.is_checkable(e.exercise) then
+			checkable = checkable + 1
+			it(("%s %s  %s"):format(e.session, e.set_id, e.exercise), function()
 				eq(e.exercise, emitted_for(e.exercise))
 			end)
 		end
 	end
+
+	it("says out loud how much of the content it covers", function()
+		-- A fence that silently covers a third of its subject reads as covering all
+		-- of it. The number is printed so a green run cannot be mistaken for one.
+		print(("      checked %d of %d exercises here (the `ex:` ones); the other %d are fenced in track-action's tests/vocabulary_spec.lua"):format(
+			checkable,
+			#EXERCISES,
+			#EXERCISES - checkable
+		))
+		eq(true, checkable > 100, "expected the ex: exercises to be found, got " .. checkable)
+	end)
 end)
 
 describe("exercise notation", function()
@@ -189,11 +192,17 @@ end)
 -- Negative rule triggers, across every shipped session
 -- =========================================================================
 
---- Every negative-rule trigger in every session this repo ships, examples
---- included: the example sessions are where the rules live, and a trigger that
---- names an action nothing emits fails exactly as quietly as a dead exercise --
---- the rule simply never fires. Arrow triggers were in that state until
---- track-action decoded K_SPECIAL.
+--- Every negative-rule trigger in every session this repo ships, examples included:
+--- the example sessions are where the rules live, and a trigger that names an action
+--- nothing emits fails exactly as quietly as a dead exercise -- the rule simply never
+--- fires. Arrow triggers were in that state until track-action decoded K_SPECIAL.
+---
+--- **Whether each one can fire is checked in track-action's
+--- `tests/vocabulary_spec.lua`**, for the same reason the key exercises are: a
+--- trigger is an action string, and asking what produces one means typing keys into
+--- a Neovim this one cannot be. What is left here is the half that is about *this*
+--- repo's content rather than about Neovim: that the rules parse into triggers at
+--- all, through the engine's own parser rather than a second copy of it.
 ---@return table[] { session, set_id, trigger, action }
 local function shipped_triggers()
 	local out = {}
@@ -214,19 +223,26 @@ local function shipped_triggers()
 	return out
 end
 
-describe("every shipped negative trigger can fire", function()
+describe("every shipped negative trigger is well-formed", function()
 	local TRIGGERS = shipped_triggers()
 
 	it("there are triggers to check at all", function()
 		eq(true, #TRIGGERS > 0, "no negative rules found under exercise-programs/")
 	end)
 
+	it("names where the can-it-fire check lives", function()
+		print(("      %d trigger(s) parsed; whether each can fire is fenced in track-action's tests/vocabulary_spec.lua"):format(#TRIGGERS))
+		eq(true, true)
+	end)
+
 	for _, t in ipairs(TRIGGERS) do
-		if not t.action:match("^ex:") then
-			it(("%s %s  %s"):format(t.session, t.set_id, t.trigger), function()
-				eq(t.action, emitted_for(t.action))
-			end)
-		end
+		it(("%s %s  %s parses to an action"):format(t.session, t.set_id, t.trigger), function()
+			-- The `[N]` consecutive-press prefix is stripped through the engine's own
+			-- parser, so this cannot disagree with what the engine matches on. An
+			-- empty result means the trigger is punctuation the rule can never match.
+			eq("string", type(t.action))
+			eq(true, #t.action > 0, "trigger parsed to an empty action")
+		end)
 	end
 end)
 

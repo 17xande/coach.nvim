@@ -272,7 +272,20 @@ describe("keybinds", function()
 		end)
 
 		describe("get_alternatives resolves the mapping's action", function()
-			it("a map to 5w is an alternative for [count]w", function()
+			-- A mapping to a *decorated* exercise -- `<leader>W` -> `5w` for
+			-- `[count]w`, `<leader>F` -> `fx` for `f{char}` -- used to be recognised
+			-- here, by running the right-hand side through track-action's parser and
+			-- comparing the action it produced. Comparing text never worked, because
+			-- one side is keys and the other an action string.
+			--
+			-- There is no parser now, and no way to ask what a key sequence would do
+			-- without pressing it, so these are asserted *not* to resolve. They are
+			-- pinned rather than deleted because the loss is temporary and the fix is
+			-- better than what it replaces: a mapping's `lhs` arrives on every atom it
+			-- produces, so the alternative is learned the first time the user presses
+			-- it -- which also covers a Lua-callback mapping, which the parser could
+			-- never reach. When that lands, these two become positive assertions again.
+			it("a map to 5w is not resolved to [count]w without the parser", function()
 				vim.keymap.set("n", "<leader>W", "5w", {})
 				local kb = fresh_keybinds()
 				local alts = kb.get_alternatives({
@@ -281,20 +294,32 @@ describe("keybinds", function()
 						{ exercise = "[count]w", display = "[count]w", desc = "N words" },
 					},
 				})
-				is_true(alts["[count]w"] ~= nil, "5w should be an alternative for [count]w")
-				-- and not for the uncounted exercise, which it does not perform
+				is_false(alts["[count]w"] ~= nil)
 				is_false(alts["w"] ~= nil)
 				vim.keymap.del("n", "<leader>W")
 			end)
 
-			it("a map to fx is an alternative for f{char}", function()
+			it("a map to fx is not resolved to f{char} without the parser", function()
 				vim.keymap.set("n", "<leader>F", "fx", {})
 				local kb = fresh_keybinds()
 				local alts = kb.get_alternatives({
 					exercises = { { exercise = "f{char}", display = "f{char}", desc = "Find" } },
 				})
-				is_true(alts["f{char}"] ~= nil)
+				is_false(alts["f{char}"] ~= nil)
 				vim.keymap.del("n", "<leader>F")
+			end)
+
+			it("a map to an exercise's own keys is still an alternative", function()
+				-- The undecorated case needs no resolution at all: the right-hand side
+				-- *is* the exercise's keys, so this is what still works and what the
+				-- two cases above are measured against.
+				vim.keymap.set("n", "<leader>h", "<C-w>h", {})
+				local kb = fresh_keybinds()
+				local alts = kb.get_alternatives({
+					exercises = { { exercise = "<C-w>h", display = "<C-w>h", desc = "Window left" } },
+				})
+				is_true(alts["<C-w>h"] ~= nil, "a direct key mapping should still resolve")
+				vim.keymap.del("n", "<leader>h")
 			end)
 
 			it("a <Plug> mapping is not an alternative for anything", function()
