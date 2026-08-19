@@ -79,6 +79,23 @@ function M.resolve_match_action(action, data, exercise_set)
 	if exercise_set and exercise_set[action] then
 		return action
 	end
+	-- The action string for the keys actually pressed, when a mapping made that
+	-- different from what ran. Three builtin exercises are creditable through
+	-- nothing else: matchit ships mapped to `%`, so pressing it performs an ex call
+	-- and the atom names *that*; `Y` is a default mapping to `y$`. The atom names
+	-- what ran and only `lhs` names what was pressed, so the set gets to choose.
+	--
+	-- This also covers every user mapping uniformly -- a `<leader>W` -> `5w` credits
+	-- `[count]w` through `action`, and a set drilling `<leader>W` itself would credit
+	-- through here -- which is what removed the need to tell a built-in default from
+	-- a custom mapping.
+	--
+	-- Asked *after* the action and *before* native, for the same reason the set is
+	-- consulted first at all: a set that named either spelling has already answered
+	-- the question, and `native` is the fallback for a report it named neither way.
+	if data and data.pressed and exercise_set and exercise_set[data.pressed] then
+		return data.pressed
+	end
 	if data and data.native then
 		return data.native
 	end

@@ -192,6 +192,64 @@ describe("resolve_match_action", function()
 		eq("<C-w>h", result)
 	end)
 
+	-- `pressed` is the action string for the keys the user actually pressed, when a
+	-- mapping made that different from what ran. Three builtin exercises are
+	-- creditable through nothing else:
+	--
+	--   `%`, `[count]%`  matchit ships in Neovim's runtime mapped to `%`, so
+	--                    pressing it performs an ex call and the atom names *that*
+	--   `Y`              a default mapping to `y$`
+	--
+	-- It also covers every user mapping uniformly, which is what removed the need to
+	-- tell a built-in default from a custom one.
+	describe("pressed keys", function()
+		it("credits the exercise the set drills when only pressed matches", function()
+			local tracker = fresh_tracker()
+			local result = tracker.resolve_match_action(
+				"ex:call",
+				{ pressed = "%" },
+				{ ["%"] = true }
+			)
+			eq("%", result)
+		end)
+
+		it("credits Y over the y$ the atom names", function()
+			local tracker = fresh_tracker()
+			eq("Y", tracker.resolve_match_action("y$", { pressed = "Y" }, { Y = true }))
+		end)
+
+		it("prefers the action when the set drills that instead", function()
+			-- A set drilling `y$` must not be credited by a press of `Y`... except
+			-- that it is the same edit. The rule is only about which name the set
+			-- chose, and the action is asked first.
+			local tracker = fresh_tracker()
+			eq("y$", tracker.resolve_match_action("y$", { pressed = "Y" }, { ["y$"] = true }))
+		end)
+
+		it("keeps the counted spelling, which is why [count]% works", function()
+			local tracker = fresh_tracker()
+			eq(
+				"[count]%",
+				tracker.resolve_match_action("ex:call", { pressed = "[count]%" }, { ["[count]%"] = true })
+			)
+		end)
+
+		it("prefers a set match on pressed over data.native", function()
+			-- native is the fallback for a report the set did not name; a set that
+			-- named the pressed keys has already answered the question.
+			local tracker = fresh_tracker()
+			eq(
+				"%",
+				tracker.resolve_match_action("ex:call", { pressed = "%", native = "<C-w>s" }, { ["%"] = true })
+			)
+		end)
+
+		it("ignores pressed when the set drills neither name", function()
+			local tracker = fresh_tracker()
+			eq("y$", tracker.resolve_match_action("y$", { pressed = "Y" }, { w = true }))
+		end)
+	end)
+
 	-- Preferring `native` unconditionally made every ex exercise with a native
 	-- equivalent uncreditable: set 08.1 drills `:split`, `:close`, `:new`, and
 	-- track-action reports each of those with native = `<C-w>s`/`<C-w>c`/`<C-w>n`,
