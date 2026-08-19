@@ -288,6 +288,14 @@ One known gap, deliberate and pinned by a test: a mapping on a prefix of the
 keys is not detected. Remapping `d` stops `dw` working, but only the whole
 sequence is checked.
 
+                                                              *coach-gr-lsp*
+One case is worth knowing, because Neovim causes it. Since 0.11 the runtime
+maps `gra`, `gri`, `grn`, `grr`, `grt` and `grx` to LSP functions, so
+those six spellings of `gr{char}` run a code action, rename or reference
+search rather than replacing a character. They are not reported as shadowed,
+because the mapping is on `gra` and not on `gr` - and the exercise is doable
+with any other character. Use `grb`, or any letter Neovim does not map.
+
 The second gap is fixed. Neovim's own default mappings used to count as
 shadows -- matchit ships mapped to `%`, so `[count]%` reported shadowed out of
 the box even though the mapping does the same thing. Every mapping now reports
